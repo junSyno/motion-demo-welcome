@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PAS7700 Countdown</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      font-family: Verdana, sans-serif;
+      overflow: hidden;
+    }
+    
+    /* 毛玻璃層專屬動畫設定 */
+    #glassLayer {
+      transition: backdrop-filter 0.5s ease-in-out, -webkit-backdrop-filter 0.5s ease-in-out, transform 0.5s ease-in-out;
+      will-change: transform, backdrop-filter;
+    }
+  </style>
+</head>
+<body class="bg-white flex flex-col h-screen w-full">
+
+  <!-- 背景圖層 (Background Modes 專屬) -->
+  <div id="appBg" class="absolute inset-0 z-0 pointer-events-none hidden">
+    <!-- 優先讀取本地圖片，若無則使用線上備用圖片 -->
+    <div class="absolute inset-0 bg-cover bg-center" style="background-image: url('./DSM%208.0%20Desktop%20Wallpapers.jpg'), url('https://images.unsplash.com/photo-1614850523459-c2f4c699c52e?q=80&w=2070&auto=format&fit=crop');"></div>
+    <div class="absolute inset-0 bg-black/40"></div>
+  </div>
+
+  <!-- 頂部導覽列 -->
+  <div id="topBar" class="relative bg-white shrink-0 w-full z-50 transition-opacity duration-300 min-h-[56px]">
+    <header class="flex justify-between items-center px-6 h-14 w-full">
+      <img id="logo" src="https://upload.wikimedia.org/wikipedia/commons/4/48/Synology_Logo.svg" alt="Synology Logo" class="h-[28px] w-auto transition-all duration-300">
+      
+      <div class="relative z-50">
+        <button id="menuBtn" class="outline-none focus:outline-none rounded-full hover:ring-2 hover:ring-gray-200 transition-all cursor-pointer h-9 w-9 flex items-center justify-center font-normal text-[16px] bg-[#F7E1EB] text-[#6E2343]">
+          W
+        </button>
+        
+        <div id="dropdownMenu" class="hidden absolute right-0 top-12 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1 overflow-hidden font-sans text-left">
+          <button class="menu-item w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors font-bold text-[#353535]" data-style="styleA">Style A</button>
+          <button class="menu-item w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-[#7A7A7A]" data-style="styleB">Style B</button>
+          <button class="menu-item w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-[#7A7A7A]" data-style="styleC">Style C</button>
+          
+          <div class="h-px bg-gray-200 my-1"></div>
+          
+          <button class="menu-item w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-[#7A7A7A]" data-style="bgA">Background A</button>
+          <button class="menu-item w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-[#7A7A7A]" data-style="bgB">Background B</button>
+          <button class="menu-item w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-[#7A7A7A]" data-style="bgC">Background C</button>
+          
+          <div class="h-px bg-gray-200 my-1"></div>
+          
+          <button class="menu-item w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-[#7A7A7A]" data-style="gradA">Progress bar / gradient</button>
+          <button class="menu-item w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-[#7A7A7A]" data-style="gradB">Progress bar / blue</button>
+        </div>
+      </div>
+    </header>
+  </div>
+
+  <!-- 主要內容區 -->
+  <main id="mainBody" class="flex-1 flex flex-col items-center justify-center relative z-10 -mt-14">
+    
+    <!-- 圖形容器：336 x 336 -->
+    <div class="relative w-[336px] h-[336px] flex items-center justify-center">
+      
+      <!-- 1. 毛玻璃底層 -->
+      <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div id="glassLayer" class="absolute rounded-full pointer-events-none hidden" style="backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); transform: scale(1);"></div>
+      </div>
+
+      <!-- 2. 圖形與數字層 (與文字共用透明度轉場) -->
+      <div id="contentContainer" class="absolute inset-0 transition-opacity duration-500 ease-in-out opacity-100 flex items-center justify-center">
+        
+        <!-- SVG 底框與線條 -->
+        <svg class="absolute inset-0 w-full h-full z-10 pointer-events-none" viewBox="0 0 336 336">
+          <circle id="bgCircle" cx="168" cy="168" r="157" fill="rgba(0,0,0,0.03)" />
+          <circle id="trackCircle" cx="168" cy="168" r="160" fill="none" stroke="rgba(0,0,0,0.03)" stroke-width="6" />
+          <circle id="activeCircle" cx="168" cy="168" r="160" fill="none" stroke="#353535" stroke-width="6" 
+            transform="rotate(-90 168 168)" style="transition: stroke-dasharray 0.1s linear;" />
+        </svg>
+
+        <!-- 角向漸層 (Gradient 模式專屬) -->
+        <div id="gradLayer" class="absolute inset-0 z-10 pointer-events-none hidden"></div>
+
+        <!-- 數字區塊 -->
+        <div id="textContainer" class="flex items-baseline relative z-20 font-normal text-[#353535]">
+          <span id="mainText" class="text-[80px] leading-[80px]">0</span>
+          <span id="percentSign" class="text-[24px]">%</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 標題與描述容器 -->
+    <div class="mt-[48px] h-[80px] relative w-full flex justify-center">
+      <div id="descContainer" class="absolute top-0 w-full transition-opacity duration-500 ease-in-out opacity-100">
+        <div class="text-center w-full">
+          <h1 id="titleText" class="text-[24px] leading-[32px] font-bold flex justify-center w-full text-[#353535]">
+            <!-- 內容由 JS 動態填入 -->
+          </h1>
+          <p id="descText" class="mt-[20px] text-[15px] leading-[24px] font-normal text-[#7A7A7A]">
+            <!-- 內容由 JS 動態填入 -->
+          </p>
+        </div>
+      </div>
+    </div>
+    
+  </main>
+
+  <!-- 應用程式邏輯 -->
+  <script>
+    // --- 狀態變數 ---
+    let currentView = 'updating'; // 'updating' | 'countdown'
+    let currentStyle = 'styleA';
+    let isTransitioning = false;
+    let animFrame = null;
+    let menuOpen = false;
+    let navHovered = false;
+
+    // --- DOM 節點參考 ---
+    const appBg = document.getElementById('appBg');
+    const topBar = document.getElementById('topBar');
+    const logo = document.getElementById('logo');
+    const menuBtn = document.getElementById('menuBtn');
+    const dropdownMenu = document.getElementById('dropdownMenu');
+    const menuItems = document.querySelectorAll('.menu-item');
+    
+    const mainBody = document.getElementById('mainBody');
+    const contentContainer = document.getElementById('contentContainer');
+    const descContainer = document.getElementById('descContainer');
+    
+    const glassLayer = document.getElementById('glassLayer');
+    const bgCircle = document.getElementById('bgCircle');
+    const trackCircle = document.getElementById('trackCircle');
+    const activeCircle = document.getElementById('activeCircle');
+    const gradLayer = document.getElementById('gradLayer');
+    
+    const textContainer = document.getElementById('textContainer');
+    const mainText = document.getElementById('mainText');
+    const percentSign = document.getElementById('percentSign');
+    const titleText = document.getElementById('titleText');
+    const descText = document.getElementById('descText');
+
+    // --- 幾何參數計算 ---
+    function getGeometry(styleType) {
+      const isBgMode = styleType.startsWith('bg');
+      const isGradMode = styleType.startsWith('grad');
+      const baseStyle = styleType.replace('bg', '').replace('style', '').replace('grad', '');
+
+      let bgR = 157;
+      let strokeR = 160;
+      let trackOpacity = 0.03; 
+      let trackColor = isBgMode ? '255,255,255' : '0,0,0';
+
+      if (baseStyle === 'A') {
+        if (isBgMode) {
+          bgR = 163;
+          strokeR = 160;
+          trackOpacity = 0; 
+        } else {
+          bgR = 157;
+          strokeR = 160;
+        }
+      } else if (baseStyle === 'B') {
+        trackOpacity = 0.08; 
+      } else if (baseStyle === 'C') {
+        bgR = 158; 
+        strokeR = 165; 
+        trackOpacity = 0.03;
+      }
+
+      return { isBgMode, isGradMode, baseStyle, bgR, strokeR, trackOpacity, trackColor };
+    }
+
+    // --- UI 與環境設定 ---
+    function updateEnvironment(styleType, viewName) {
+      const { isBgMode, isGradMode, baseStyle, bgR, strokeR, trackOpacity, trackColor } = getGeometry(styleType);
+      const isGradA = styleType === 'gradA';
+      const isGradB = styleType === 'gradB';
+
+      // 背景切換
+      isBgMode ? appBg.classList.remove('hidden') : appBg.classList.add('hidden');
+      isBgMode ? mainBody.classList.remove('-mt-14') : mainBody.classList.add('-mt-14');
+
+      // TopBar 切換
+      if (isBgMode) {
+        topBar.className = 'absolute top-0 left-0 pt-2 w-full z-50 transition-opacity duration-300 min-h-[80px]';
+        logo.classList.add('brightness-0', 'invert');
+      } else {
+        topBar.className = 'relative bg-white shrink-0 w-full z-50 transition-opacity duration-300 min-h-[56px]';
+        logo.classList.remove('brightness-0', 'invert');
+      }
+      updateTopBarOpacity();
+
+      // 文字顏色設定
+      const textColorClass = isBgMode ? 'text-white' : 'text-[#353535]';
+      const descColorClass = isBgMode ? 'text-[#ccc]' : 'text-[#7A7A7A]';
+      
+      textContainer.className = `flex items-baseline relative z-20 font-normal ${textColorClass}`;
+      titleText.className = `text-[24px] leading-[32px] font-bold flex justify-center w-full ${textColorClass}`;
+      descText.className = `mt-[20px] text-[15px] leading-[24px] font-normal ${descColorClass}`;
+
+      // 視圖內容設定
+      if (viewName === 'updating') {
+        titleText.innerHTML = `<span>Updating DSM on your DiskStation</span><span id="dotsSpan" class="w-[40px] inline-block text-left"></span>`;
+        descText.innerText = 'This will take about 10 minutes. Please wait.';
+        percentSign.style.display = 'inline';
+        activeCircle.style.transition = 'stroke-dasharray 0.1s linear';
+      } else {
+        titleText.innerHTML = `Restarting your PAS7700`;
+        descText.innerText = 'Your PAS7700 will be ready in approximately 10 minutes. Please do not turn off the power during this process.';
+        percentSign.style.display = 'none';
+        activeCircle.style.transition = 'transition-duration: 0ms';
+      }
+
+      // 毛玻璃設定
+      if (isBgMode) {
+        glassLayer.classList.remove('hidden');
+        if (baseStyle === 'C') {
+          const outerR = strokeR + 3;
+          glassLayer.style.width = (outerR * 2) + 'px';
+          glassLayer.style.height = (outerR * 2) + 'px';
+          const mask = `radial-gradient(circle, black ${bgR}px, transparent ${bgR + 0.5}px, transparent ${strokeR - 3 - 0.5}px, black ${strokeR - 3}px)`;
+          glassLayer.style.maskImage = mask;
+          glassLayer.style.webkitMaskImage = mask;
+        } else {
+          glassLayer.style.width = (bgR * 2) + 'px';
+          glassLayer.style.height = (bgR * 2) + 'px';
+          glassLayer.style.maskImage = 'none';
+          glassLayer.style.webkitMaskImage = 'none';
+        }
+      } else {
+        glassLayer.classList.add('hidden');
+      }
+
+      // SVG 設定
+      bgCircle.setAttribute('r', bgR);
+      bgCircle.setAttribute('fill', isGradMode ? 'none' : 'rgba(0,0,0,0.03)');
+
+      if (trackOpacity > 0) {
+        trackCircle.style.display = 'block';
+        trackCircle.setAttribute('r', strokeR);
+        trackCircle.setAttribute('stroke', `rgba(${trackColor}, ${trackOpacity})`);
+      } else {
+        trackCircle.style.display = 'none';
+      }
+
+      if (!isGradA) {
+        activeCircle.style.display = 'block';
+        activeCircle.setAttribute('r', strokeR);
+        let strokeColor = "#353535";
+        if (isBgMode) strokeColor = "#FFFFFF";
+        if (isGradB) strokeColor = "#0575E5";
+        activeCircle.setAttribute('stroke', strokeColor);
+      } else {
+        activeCircle.style.display = 'none';
+      }
+
+      if (isGradA) {
+        gradLayer.classList.remove('hidden');
+        const mask = `radial-gradient(circle, transparent ${strokeR - 3 - 0.5}px, black ${strokeR - 3}px, black ${strokeR + 3}px, transparent ${strokeR + 3 + 0.5}px)`;
+        gradLayer.style.maskImage = mask;
+        gradLayer.style.webkitMaskImage = mask;
+      } else {
+        gradLayer.classList.add('hidden');
+      }
+
+      // 更新選單 Focus
+      menuItems.forEach(item => {
+        if (item.dataset.style === styleType) {
+          item.className = 'menu-item w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors font-bold text-[#353535]';
+        } else {
+          item.className = 'menu-item w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-[#7A7A7A]';
+        }
+      });
+    }
+
+    // --- 每幀動畫更新 ---
+    function updateFrame(val, view) {
+      const { strokeR } = getGeometry(currentStyle);
+      const isGradA = currentStyle === 'gradA';
+      const circ = 2 * Math.PI * strokeR;
+
+      if (view === 'updating') {
+        const progress = val;
+        mainText.innerText = Math.floor(progress);
+
+        const P = (progress / 100) * circ;
+        const G = circ - P;
+        
+        if (!isGradA) activeCircle.setAttribute('stroke-dasharray', `${P} ${G}`);
+        if (isGradA) {
+          const pAngle = Math.max((progress / 100) * 360, 0);
+          gradLayer.style.background = `conic-gradient(from 0deg, #5FA7FA 0deg, #0575E5 ${pAngle / 2}deg, #1356A3 ${pAngle}deg, transparent ${pAngle}deg)`;
+        }
+
+      } else {
+        const timeLeft = val;
+        const s = Math.max(Math.ceil(timeLeft), 0);
+        const m = Math.floor(s / 60);
+        const rem = s % 60;
+        mainText.innerText = `${m.toString().padStart(2, '0')}:${rem.toString().padStart(2, '0')}`;
+
+        const ratio = Math.max(timeLeft / 600, 0);
+        const P = ratio * circ;
+        const G = circ - P;
+
+        if (!isGradA) activeCircle.setAttribute('stroke-dasharray', `0 ${G} ${P} 0`);
+        if (isGradA) {
+          const pAngle = ratio * 360;
+          const startAngle = (1 - ratio) * 360;
+          gradLayer.style.background = `conic-gradient(from ${startAngle}deg, #1356A3 0deg, #0575E5 ${pAngle / 2}deg, #5FA7FA ${pAngle}deg, transparent ${pAngle}deg)`;
+        }
+      }
+    }
+
+    // --- 時間軸動畫邏輯 ---
+    const updTimeline = [
+      { target: 15, duration: 1000, delay: 500 },
+      { target: 46, duration: 1500, delay: 1200 },
+      { target: 89, duration: 2500, delay: 800 },
+      { target: 100, duration: 1500, delay: 500 }
+    ];
+    let updState = {};
+
+    function updatingLoop(timestamp) {
+      if (updState.step >= updTimeline.length) {
+        changeState(currentStyle, 'countdown');
+        return;
+      }
+      const stepInfo = updTimeline[updState.step];
+
+      if (updState.isDelaying) {
+        if (timestamp - updState.delayStartTime >= stepInfo.delay) {
+          updState.isDelaying = false;
+          updState.stepStartTime = timestamp;
+          updState.startValue = updState.currentValue;
+          updState.step++;
+        }
+      } else {
+        if (!updState.stepStartTime) updState.stepStartTime = timestamp;
+        
+        const elapsed = timestamp - updState.stepStartTime;
+        const p = Math.min(elapsed / stepInfo.duration, 1);
+        const ease = 1 - Math.pow(1 - p, 3);
+        
+        updState.currentValue = updState.startValue + (stepInfo.target - updState.startValue) * ease;
+        updateFrame(updState.currentValue, 'updating');
+
+        if (p >= 1) {
+          updState.currentValue = stepInfo.target;
+          updateFrame(stepInfo.target, 'updating');
+          updState.isDelaying = true;
+          updState.delayStartTime = timestamp;
+        }
+      }
+      animFrame = requestAnimationFrame(updatingLoop);
+    }
+
+    let cdStartTime = 0;
+    function countdownLoop(timestamp) {
+      if (!cdStartTime) cdStartTime = timestamp;
+      const elapsed = (timestamp - cdStartTime) / 1000;
+      const timeLeft = Math.max(600 - elapsed, 0);
+      
+      updateFrame(timeLeft, 'countdown');
+      if (timeLeft > 0) animFrame = requestAnimationFrame(countdownLoop);
+    }
+
+    // --- 狀態切換與轉場 ---
+    function changeState(newStyle, newView) {
+      if (currentStyle === newStyle && currentView === newView && viewName === 'updating') return;
+      if (isTransitioning) return;
+      
+      isTransitioning = true;
+
+      // 觸發內容淡出與毛玻璃消散
+      contentContainer.classList.replace('opacity-100', 'opacity-0');
+      descContainer.classList.replace('opacity-100', 'opacity-0');
+      glassLayer.style.backdropFilter = 'blur(0px)';
+      glassLayer.style.webkitBackdropFilter = 'blur(0px)';
+      glassLayer.style.transform = 'scale(0.98)';
+
+      setTimeout(() => {
+        cancelAnimationFrame(animFrame);
+        currentStyle = newStyle;
+        currentView = newView;
+
+        updateEnvironment(currentStyle, currentView);
+
+        if (currentView === 'updating') {
+          updState = { step: 0, stepStartTime: 0, startValue: 0, currentValue: 0, isDelaying: false, delayStartTime: 0 };
+          updateFrame(0, 'updating');
+          animFrame = requestAnimationFrame(updatingLoop);
+        } else {
+          cdStartTime = 0;
+          updateFrame(600, 'countdown');
+          animFrame = requestAnimationFrame(countdownLoop);
+        }
+
+        // 觸發內容淡入與毛玻璃凝聚
+        contentContainer.classList.replace('opacity-0', 'opacity-100');
+        descContainer.classList.replace('opacity-0', 'opacity-100');
+        glassLayer.style.backdropFilter = 'blur(30px)';
+        glassLayer.style.webkitBackdropFilter = 'blur(30px)';
+        glassLayer.style.transform = 'scale(1)';
+
+        setTimeout(() => {
+          isTransitioning = false;
+        }, 500);
+      }, 500);
+    }
+
+    // --- 導覽列與選單事件 ---
+    function updateTopBarOpacity() {
+      const { isBgMode } = getGeometry(currentStyle);
+      if (!isBgMode) return;
+      
+      if (!navHovered && !menuOpen) {
+        topBar.classList.replace('opacity-100', 'opacity-0');
+      } else {
+        topBar.classList.replace('opacity-0', 'opacity-100');
+      }
+    }
+
+    topBar.addEventListener('mouseenter', () => { navHovered = true; updateTopBarOpacity(); });
+    topBar.addEventListener('mouseleave', () => { if (!menuOpen) navHovered = false; updateTopBarOpacity(); });
+
+    menuBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      menuOpen = !menuOpen;
+      if (!menuOpen) navHovered = true;
+      dropdownMenu.classList.toggle('hidden');
+      updateTopBarOpacity();
+    });
+
+    document.addEventListener('click', () => {
+      menuOpen = false;
+      dropdownMenu.classList.add('hidden');
+      updateTopBarOpacity();
+    });
+
+    menuItems.forEach(item => {
+      item.addEventListener('click', (e) => {
+        const newStyle = e.target.dataset.style;
+        changeState(newStyle, 'updating');
+      });
+    });
+
+    // --- 文字特效 ---
+    setInterval(() => {
+      const dotsSpan = document.getElementById('dotsSpan');
+      if (dotsSpan) {
+        dotsSpan.innerText = dotsSpan.innerText.length >= 3 ? '' : dotsSpan.innerText + '.';
+      }
+    }, 500);
+
+    // --- 初始化執行 ---
+    updateEnvironment(currentStyle, currentView);
+    updState = { step: 0, stepStartTime: 0, startValue: 0, currentValue: 0, isDelaying: false, delayStartTime: 0 };
+    updateFrame(0, 'updating');
+    animFrame = requestAnimationFrame(updatingLoop);
+
+  </script>
+</body>
+</html>

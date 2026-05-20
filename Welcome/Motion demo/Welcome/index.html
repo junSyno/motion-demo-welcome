@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DiskStation Manager 7.4 - Welcome</title>
+  
+  <!-- 載入 Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- 載入 React & ReactDOM (Production) -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  
+  <!-- 載入 Babel 以便在瀏覽器中直接解析 JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    // 定義風格的預設參數，包含 duration, delay, distance Y 與 scale (Style B 縮放專用)
+    const PRESETS = {
+      StyleA: {
+        title: { duration: 2, delay: 0, y: 40, scale: 1 },
+        desc:  { duration: 2, delay: 0, y: 40, scale: 1 },
+        btn:   { duration: 2, delay: 0, y: 40, scale: 1 },
+        easing: 'cubic-bezier(0.15, 0.40, 0.20, 1.00)'
+      },
+      StyleB: {
+        title: { duration: 1.5, delay: 0, y: 40, scale: 0.95 },
+        desc:  { duration: 1.45, delay: 0.05, y: 40, scale: 0.95 },
+        btn:   { duration: 1.45, delay: 0.05, y: 40, scale: 0.95 },
+        easing: 'cubic-bezier(0.20, 0.25, 0.10, 1.00)'
+      }
+    };
+
+    function App() {
+      const [activePreset, setActivePreset] = useState('StyleA');
+      const [config, setConfig] = useState(PRESETS.StyleA);
+      
+      // 用於強制重繪 main 區塊，以重播動畫
+      const [renderKey, setRenderKey] = useState(0);
+      
+      // UI 狀態
+      const [isMenuOpen, setIsMenuOpen] = useState(false);
+      const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+      const [toastMessage, setToastMessage] = useState('');
+
+      // 選單的 Ref，用於偵測點擊外部
+      const menuRef = useRef(null);
+
+      // 監聽點擊外部事件
+      useEffect(() => {
+        function handleClickOutside(event) {
+          if (menuRef.current && !menuRef.current.contains(event.target)) {
+            setIsMenuOpen(false);
+          }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+      }, []);
+
+      // 切換預設風格
+      const handleApplyPreset = (presetName) => {
+        setActivePreset(presetName);
+        setConfig(PRESETS[presetName]);
+        setRenderKey(prev => prev + 1); // 切換時自動重播
+      };
+
+      // 獨立更新某個元素的某個參數
+      const handleConfigChange = (item, key, value) => {
+        setActivePreset('Custom');
+        const numValue = value === '' ? 0 : parseFloat(value);
+        setConfig(prev => ({
+          ...prev,
+          [item]: {
+            ...prev[item],
+            [key]: numValue
+          }
+        }));
+      };
+
+      // 獨立更新 easing 曲線
+      const handleEasingChange = (value) => {
+        setActivePreset('Custom');
+        setConfig(prev => ({ ...prev, easing: value }));
+      };
+
+      // 點擊 Logo 重播
+      const handleReplay = () => {
+        setRenderKey(prev => prev + 1);
+      };
+
+      // 關閉設定並套用重播
+      const handleApplySettings = () => {
+        setIsSettingsOpen(false);
+        setRenderKey(prev => prev + 1);
+      };
+
+      // 複製 JSON 參數
+      const handleCopyConfig = () => {
+        const textToCopy = JSON.stringify(config, null, 2);
+        try {
+          const textArea = document.createElement("textarea");
+          textArea.value = textToCopy;
+          textArea.style.position = "fixed";
+          textArea.style.left = "-999999px";
+          textArea.style.top = "-999999px";
+          document.body.appendChild(textArea);
+          textArea.focus();
+          textArea.select();
+          document.execCommand('copy');
+          textArea.remove();
+          
+          setToastMessage('已成功複製參數！(Copied to clipboard)');
+          setTimeout(() => setToastMessage(''), 3000);
+        } catch (err) {
+          console.error('複製失敗', err);
+          setToastMessage('複製失敗，請手動複製！');
+          setTimeout(() => setToastMessage(''), 3000);
+        }
+      };
+
+      return (
+        <div className="min-h-screen flex flex-col overflow-hidden bg-white text-[#353535] relative selection:bg-[#0575E5] selection:text-white" style={{ fontFamily: 'Verdana, Geneva, sans-serif' }}>
+          
+          <style dangerouslySetInnerHTML={{__html: `
+            :root {
+              --gradient-title: linear-gradient(
+                91deg, 
+                #5FA7FA 0%, 
+                #0575E5 25%, 
+                #1356A3 50%, 
+                #0575E5 75%, 
+                #5FA7FA 100%
+              );
+            }
+
+            @keyframes dynamicFadeUp {
+              0% { 
+                opacity: 0; 
+                transform: translate3d(0, var(--start-y, 40px), 0) scale(var(--start-scale, 1)); 
+              }
+              100% { 
+                opacity: 1; 
+                transform: translate3d(0, 0, 0) scale(1); 
+              }
+            }
+
+            @keyframes continuousGradient {
+              0% { background-position: 200% center; }
+              100% { background-position: 0% center; }
+            }
+            
+            .title-gradient-text {
+              background: var(--gradient-title);
+              background-size: 200% auto;
+              color: transparent;
+              -webkit-background-clip: text;
+              background-clip: text;
+            }
+
+            .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+            .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+            .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
+          `}} />
+
+          <header className="flex justify-between items-center h-[56px] px-6 relative z-30">
+            <div className="flex items-center cursor-pointer group" onClick={handleReplay} title="Click to replay animation">
+              <img 
+                src="https://upload.wikimedia.org/wikipedia/commons/4/48/Synology_Logo.svg" 
+                alt="Synology Logo" 
+                className="h-[28px] opacity-80 transition-opacity group-hover:opacity-100 grayscale contrast-200 brightness-0"
+                draggable="false"
+              />
+            </div>
+            
+            <div className="relative" ref={menuRef}>
+              <div 
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className="w-9 h-9 rounded-full bg-[#FCE8F0] text-[#A64D79] flex items-center justify-center font-medium shadow-sm cursor-pointer border border-[#F0D0DF] transition-transform hover:scale-105 active:scale-95"
+              >
+                W
+              </div>
+              
+              {isMenuOpen && (
+                <div className="absolute right-0 mt-3 w-max min-w-[240px] bg-white border border-slate-200 shadow-xl rounded-xl py-2 z-50 animate-[dynamicFadeUp_0.3s_ease-out_forwards]" style={{ '--start-y': '10px' }}>
+                  <div className="px-4 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">進場風格</div>
+                  <button onClick={() => handleApplyPreset('StyleA')} className={`w-full text-left px-4 py-2 text-sm hover:bg-slate-50 transition-colors whitespace-nowrap ${activePreset === 'StyleA' ? 'text-[#0575E5] font-medium' : 'text-slate-700'}`}>
+                    Style A (同步浮現)
+                  </button>
+                  <button onClick={() => handleApplyPreset('StyleB')} className={`w-full text-left px-4 py-2 text-sm hover:bg-slate-50 transition-colors whitespace-nowrap ${activePreset === 'StyleB' ? 'text-[#0575E5] font-medium' : 'text-slate-700'}`}>
+                    Style B (縮放進場)
+                  </button>
+                  <div className="border-t border-slate-100 my-2"></div>
+                  <button onClick={() => {setIsSettingsOpen(true); setIsMenuOpen(false);}} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors flex justify-between items-center whitespace-nowrap">
+                    <span>動態設定 (Motion Settings)</span>
+                    <span className="text-slate-400 ml-4">⚙️</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </header>
+
+          {toastMessage && (
+            <div className="fixed top-20 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-full text-sm font-medium shadow-lg z-50 animate-[dynamicFadeUp_0.3s_ease-out_forwards]" style={{ '--start-y': '-20px' }}>
+              {toastMessage}
+            </div>
+          )}
+
+          <main key={renderKey} className="flex-grow flex flex-col items-center justify-center px-4 -mt-16 z-10">
+            
+            <div className="w-full flex flex-col items-center">
+              
+              <div className="relative w-full flex justify-center mb-4">
+                <h1 
+                  className="title-gradient-text text-[56px] font-extrabold whitespace-nowrap leading-[100px] tracking-tight opacity-0"
+                  style={{
+                    '--start-y': `${config.title.y}px`,
+                    '--start-scale': config.title.scale,
+                    animation: `
+                      dynamicFadeUp ${config.title.duration}s ${config.easing} ${config.title.delay}s forwards,
+                      continuousGradient 6s linear infinite
+                    `,
+                    willChange: 'transform, opacity, background-position'
+                  }}
+                >
+                  DiskStation Manager 7.4
+                </h1>
+              </div>
+
+              <div className="flex flex-col items-center">
+                <p 
+                  className="text-[#353535] text-[15px] mb-9 tracking-wide font-medium opacity-0"
+                  style={{
+                    '--start-y': `${config.desc.y}px`,
+                    '--start-scale': config.desc.scale,
+                    animation: `dynamicFadeUp ${config.desc.duration}s ${config.easing} ${config.desc.delay}s forwards`,
+                    willChange: 'transform, opacity'
+                  }}
+                >
+                  Let's set up DiskStation Manager in just a few steps. 
+                  <a href="#" className="ml-1 underline decoration-slate-300 underline-offset-4 transition-colors duration-300 hover:text-[#0575E5] hover:decoration-[#0575E5]">
+                    See what's new
+                  </a>
+                </p>
+                
+                <div 
+                  className="opacity-0"
+                  style={{
+                    '--start-y': `${config.btn.y}px`,
+                    '--start-scale': config.btn.scale,
+                    animation: `dynamicFadeUp ${config.btn.duration}s ${config.easing} ${config.btn.delay}s forwards`,
+                    willChange: 'transform, opacity'
+                  }}
+                >
+                  <button className="group relative flex items-center justify-center text-white w-[180px] h-[42px] rounded-full font-normal text-[15px] transition-all duration-300 shadow-[0_4px_14px_0_rgba(0,0,0,0.08)] active:scale-[0.98] overflow-hidden bg-[#474747] hover:bg-[#353535] border border-white/5 hover:shadow-[0_6px_20px_rgba(0,0,0,0.15)] hover:-translate-y-0.5">
+                    <span className="relative z-10 tracking-wide">Continue</span>
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </main>
+
+          {isSettingsOpen && (
+            <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm flex items-center justify-center z-50">
+              <div className="bg-white w-[480px] max-w-[95vw] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                
+                <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                  <div>
+                    <h2 className="text-xl font-bold text-slate-800">Motion Settings</h2>
+                    <p className="text-xs text-slate-500 mt-1">調校各元件進場參數，打造專屬動態</p>
+                  </div>
+                  <button onClick={() => setIsSettingsOpen(false)} className="text-slate-400 hover:text-slate-600 p-2 rounded-full hover:bg-slate-100 transition-colors">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                  </button>
+                </div>
+
+                <div className="px-6 pt-4">
+                  <div className="flex bg-slate-100 p-1 rounded-lg">
+                    {['StyleA', 'StyleB'].map(tab => (
+                      <button 
+                        key={tab} 
+                        onClick={() => handleApplyPreset(tab)}
+                        className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${activePreset === tab ? 'bg-white text-[#0575E5] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                      >
+                        {tab.replace('Style', 'Style ')}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+                  <ControlGroup label="標題 (Title)" itemKey="title" config={config} onChange={handleConfigChange} />
+                  <ControlGroup label="副標題 (Description)" itemKey="desc" config={config} onChange={handleConfigChange} />
+                  <ControlGroup label="按鈕 (Button)" itemKey="btn" config={config} onChange={handleConfigChange} />
+                  
+                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <h3 className="font-bold text-sm text-slate-700 mb-3 flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#0575E5]"></span>Easing Curve
+                    </h3>
+                    <CubicBezierEditor value={config.easing} onChange={handleEasingChange} />
+                    <input 
+                      type="text" 
+                      value={config.easing} 
+                      onChange={(e) => handleEasingChange(e.target.value)} 
+                      className="w-full mt-3 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-700 font-mono focus:outline-none focus:border-[#0575E5] focus:ring-1 focus:ring-[#0575E5]"
+                    />
+                  </div>
+                </div>
+
+                <div className="px-6 py-4 border-t border-slate-100 bg-white grid grid-cols-2 gap-3">
+                  <button 
+                    onClick={handleCopyConfig}
+                    className="py-2.5 bg-slate-100 text-slate-700 rounded-lg font-medium hover:bg-slate-200 transition-colors text-sm border border-slate-200"
+                  >
+                    複製參數 (Copy JSON)
+                  </button>
+                  <button 
+                    onClick={handleApplySettings}
+                    className="py-2.5 bg-[#0575E5] text-white rounded-lg font-medium hover:bg-[#1356A3] transition-colors shadow-sm text-sm"
+                  >
+                    套用並重播 (Apply)
+                  </button>
+                </div>
+                
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // 可重複使用的輸入控制元件
+    function ControlGroup({ label, itemKey, config, onChange }) {
+      const itemConfig = config[itemKey];
+      return (
+        <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+          <h3 className="font-bold text-sm text-slate-700 mb-3 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#0575E5]"></span>{label}
+          </h3>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <NumberInput label="Duration (s)" value={itemConfig.duration} onChange={(v) => onChange(itemKey, 'duration', v)} step="0.1" />
+            <NumberInput label="Delay (s)" value={itemConfig.delay} onChange={(v) => onChange(itemKey, 'delay', v)} step="0.05" />
+            <NumberInput label="Distance Y (px)" value={itemConfig.y} onChange={(v) => onChange(itemKey, 'y', v)} step="1" />
+            <NumberInput label="Start Scale" value={itemConfig.scale} onChange={(v) => onChange(itemKey, 'scale', v)} step="0.01" />
+          </div>
+        </div>
+      );
+    }
+
+    // 數字輸入框元件
+    function NumberInput({ label, value, onChange, step }) {
+      return (
+        <div>
+          <label className="block text-[11px] font-medium text-slate-500 mb-1.5">{label}</label>
+          <input
+            type="number"
+            step={step}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm text-slate-800 font-mono focus:outline-none focus:border-[#0575E5] focus:ring-1 focus:ring-[#0575E5] transition-colors"
+          />
+        </div>
+      );
+    }
+
+    // 解析 Easing 字串
+    const parseBezier = (str) => {
+      const match = str.match(/cubic-bezier\(\s*([+-]?\d*\.?\d+)\s*,\s*([+-]?\d*\.?\d+)\s*,\s*([+-]?\d*\.?\d+)\s*,\s*([+-]?\d*\.?\d+)\s*\)/);
+      if (match) {
+        const vals = [parseFloat(match[1]), parseFloat(match[2]), parseFloat(match[3]), parseFloat(match[4])];
+        if (vals.every(v => !isNaN(v))) return vals;
+      }
+      return [0.25, 0.1, 0.25, 1];
+    };
+
+    // SVG 視覺化拖曳編輯器
+    function CubicBezierEditor({ value, onChange }) {
+      const [pts, setPts] = useState(() => parseBezier(value));
+      const [dragging, setDragging] = useState(null);
+      const svgRef = useRef(null);
+
+      useEffect(() => {
+        const newPts = parseBezier(value);
+        if (
+          Math.abs(newPts[0] - pts[0]) > 0.01 || Math.abs(newPts[1] - pts[1]) > 0.01 ||
+          Math.abs(newPts[2] - pts[2]) > 0.01 || Math.abs(newPts[3] - pts[3]) > 0.01
+        ) {
+          setPts(newPts);
+        }
+      }, [value]);
+
+      const w = 240;
+      const h = 240;
+      const padding = 40;
+      const innerW = w - padding * 2;
+      const innerH = h - padding * 2;
+
+      const calcX = (x) => padding + x * innerW;
+      const calcY = (y) => h - padding - y * innerH;
+
+      const handlePointerDown = (e, index) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragging(index);
+      };
+
+      useEffect(() => {
+        if (!dragging) return;
+
+        const handlePointerMove = (e) => {
+          if (!svgRef.current) return;
+          const rect = svgRef.current.getBoundingClientRect();
+          const scaleX = w / rect.width;
+          const scaleY = h / rect.height;
+
+          const clientX = e.clientX - rect.left;
+          const clientY = e.clientY - rect.top;
+
+          let rawX = (clientX * scaleX - padding) / innerW;
+          let rawY = (h - padding - clientY * scaleY) / innerH;
+
+          rawX = Math.max(0, Math.min(1, rawX));
+          rawY = Math.max(-0.5, Math.min(1.5, rawY));
+
+          const newPts = [...pts];
+          if (dragging === 1) {
+            newPts[0] = rawX;
+            newPts[1] = rawY;
+          } else {
+            newPts[2] = rawX;
+            newPts[3] = rawY;
+          }
+          
+          setPts(newPts);
+          onChange(`cubic-bezier(${newPts[0].toFixed(2)}, ${newPts[1].toFixed(2)}, ${newPts[2].toFixed(2)}, ${newPts[3].toFixed(2)})`);
+        };
+
+        const handlePointerUp = () => setDragging(null);
+
+        window.addEventListener('pointermove', handlePointerMove);
+        window.addEventListener('pointerup', handlePointerUp);
+
+        return () => {
+          window.removeEventListener('pointermove', handlePointerMove);
+          window.removeEventListener('pointerup', handlePointerUp);
+        };
+      }, [dragging, onChange, pts]);
+
+      const pathD = `M ${calcX(0)} ${calcY(0)} C ${calcX(pts[0])} ${calcY(pts[1])}, ${calcX(pts[2])} ${calcY(pts[3])}, ${calcX(1)} ${calcY(1)}`;
+
+      return (
+        <div className="flex justify-center bg-white rounded-lg border border-slate-200 p-4">
+          <svg
+            ref={svgRef}
+            viewBox="0 0 240 240"
+            className="w-[180px] h-[180px] overflow-visible touch-none"
+          >
+            <rect x={padding} y={padding} width={innerW} height={innerH} fill="#F8FAFC" stroke="#E2E8F0" strokeWidth="1" />
+            <line x1={padding} y1={h/2} x2={w-padding} y2={h/2} stroke="#E2E8F0" strokeWidth="1" strokeDasharray="4 4" />
+            <line x1={w/2} y1={padding} x2={w/2} y2={h-padding} stroke="#E2E8F0" strokeWidth="1" strokeDasharray="4 4" />
+            
+            <line x1={padding} y1={calcY(1.5)} x2={w-padding} y2={calcY(1.5)} stroke="#F1F5F9" strokeWidth="1" strokeDasharray="2 2" />
+            <line x1={padding} y1={calcY(-0.5)} x2={w-padding} y2={calcY(-0.5)} stroke="#F1F5F9" strokeWidth="1" strokeDasharray="2 2" />
+
+            <text x={padding - 8} y={calcY(0)} fontSize="10" fill="#94A3B8" textAnchor="end" alignmentBaseline="middle">0</text>
+            <text x={padding - 8} y={calcY(1)} fontSize="10" fill="#94A3B8" textAnchor="end" alignmentBaseline="middle">1</text>
+            <text x={padding - 8} y={calcY(1.5)} fontSize="9" fill="#CBD5E1" textAnchor="end" alignmentBaseline="middle">1.5</text>
+            <text x={padding - 8} y={calcY(-0.5)} fontSize="9" fill="#CBD5E1" textAnchor="end" alignmentBaseline="middle">-0.5</text>
+
+            <text x={calcX(0)} y={calcY(0) + 16} fontSize="10" fill="#94A3B8" textAnchor="middle">0</text>
+            <text x={calcX(1)} y={calcY(0) + 16} fontSize="10" fill="#94A3B8" textAnchor="middle">1</text>
+
+            <line x1={calcX(0)} y1={calcY(0)} x2={calcX(pts[0])} y2={calcY(pts[1])} stroke="#94A3B8" strokeWidth="1.5" />
+            <line x1={calcX(1)} y1={calcY(1)} x2={calcX(pts[2])} y2={calcY(pts[3])} stroke="#94A3B8" strokeWidth="1.5" />
+
+            <path d={pathD} stroke="#0575E5" strokeWidth="3" fill="none" strokeLinecap="round" />
+
+            <circle cx={calcX(0)} cy={calcY(0)} r="4.5" fill="#64748B" />
+            <circle cx={calcX(1)} cy={calcY(1)} r="4.5" fill="#64748B" />
+
+            <circle
+              cx={calcX(pts[0])}
+              cy={calcY(pts[1])}
+              r={dragging === 1 ? "8" : "6"}
+              fill={dragging === 1 ? '#0575E5' : '#ffffff'}
+              stroke="#0575E5"
+              strokeWidth="2.5"
+              className="cursor-grab active:cursor-grabbing transition-all"
+              onPointerDown={(e) => handlePointerDown(e, 1)}
+            />
+            <circle
+              cx={calcX(pts[2])}
+              cy={calcY(pts[3])}
+              r={dragging === 2 ? "8" : "6"}
+              fill={dragging === 2 ? '#0575E5' : '#ffffff'}
+              stroke="#0575E5"
+              strokeWidth="2.5"
+              className="cursor-grab active:cursor-grabbing transition-all"
+              onPointerDown={(e) => handlePointerDown(e, 2)}
+            />
+          </svg>
+        </div>
+      );
+    }
+
+    // 啟動 React App
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
