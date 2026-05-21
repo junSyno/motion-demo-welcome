@@ -10,7 +10,8 @@
       --loader-time: 2s;
       --loader-dash-time: 2s;
       /* 修正：將旋轉與伸縮秒數設為一致，以保持無縫循環與固定起始點 */
-      --loader-size: 56px;
+      --loader-size-num: 56;
+      --loader-size: calc(var(--loader-size-num) * 1px);
       --loader-stroke-width: 3px;
       --loader-stroke-color: #292929;
       --loader-easing: cubic-bezier(0.4, 0, 0.2, 1);
@@ -141,7 +142,7 @@
       circle {
         fill: none;
         stroke: var(--loader-stroke-color);
-        stroke-width: var(--loader-stroke-width);
+        stroke-width: calc(var(--loader-stroke-width) * 50 / var(--loader-size-num));
         stroke-linecap: round;
         stroke-dasharray: 1, 360;
         stroke-dashoffset: 0;
@@ -388,6 +389,37 @@
       width: 100%;
       text-align: center;
     }
+
+    .page-content {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn-login {
+      width: 352px;
+      height: 42px;
+      background-color: #0575E5;
+      border: none;
+      border-radius: 1000px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0, 102, 204, 0.2);
+      transition: background-color 0.2s, transform 0.1s;
+      outline: none;
+    }
+
+    .btn-login:hover {
+      background-color: #0052a3;
+    }
+
+    .btn-login:active {
+      transform: scale(0.98);
+    }
   </style>
 </head>
 
@@ -432,6 +464,16 @@
       <div class="settings-panel" id="settingsPanel">
         <h3>Loader 調整面板</h3>
 
+        <!-- 頁面選擇 -->
+        <div class="setting-group"
+          style="border-bottom: 1px solid rgba(0,0,0,0.06); padding-bottom: 12px; margin-bottom: 4px;">
+          <label>選擇頁面</label>
+          <div class="preset-buttons" id="pageSelector">
+            <button type="button" class="btn-preset active" data-page="fti">FTI</button>
+            <button type="button" class="btn-preset" data-page="login">Login</button>
+          </div>
+        </div>
+
         <!-- 秒數調整 -->
         <div class="setting-group">
           <label for="inputSeconds">旋轉秒數 (秒)</label>
@@ -444,7 +486,7 @@
         <!-- 尺寸調整 -->
         <div class="setting-group">
           <label for="inputSize">Loader 尺寸 (width) (px)</label>
-          <input type="number" id="inputSize" min="24" max="150" value="56" />
+          <input type="number" id="inputSize" min="14" max="150" value="56" />
         </div>
 
         <!-- 粗細調整 -->
@@ -467,7 +509,7 @@
           <label>動態曲線 (Cubic-Bezier)</label>
           <div class="preset-buttons" id="easingSelector">
             <button type="button" class="btn-preset" data-type="ease-in-out">Ease-in-out</button>
-            <button type="button" class="btn-preset" data-type="default">Default cubic</button>
+            <button type="button" class="btn-preset" data-type="default">Cubic-1</button>
             <button type="button" class="btn-preset" data-type="custom">Customized</button>
           </div>
 
@@ -514,18 +556,32 @@
   </header>
 
   <main>
-    <div class="loader-container">
-      <div class="general_spin" id="loader">
-        <svg viewBox="0 0 50 50">
-          <!-- 關鍵就在這裡：加上 pathLength -->
-          <circle cx="25" cy="25" r="20" pathLength="360" />
-        </svg>
+    <!-- FTI 頁面內容 -->
+    <div id="pageFti" class="page-content">
+      <div class="loader-container">
+        <div class="general_spin">
+          <svg viewBox="0 0 50 50">
+            <!-- 關鍵就在這裡：加上 pathLength -->
+            <circle cx="25" cy="25" r="20" pathLength="360" />
+          </svg>
+        </div>
       </div>
+      <h2>Updating <span id="packageName">Synology Drive</span> (<span id="progressNumber">3</span>/18)</h2>
+      <p>Package update may take some time. You can sign in to DSM 7.4 now, and the updates will continue in the
+        background. Please do not shut down the system during this process.</p>
+      <button class="btn-refresh">Refresh</button>
     </div>
-    <h2>Updating <span id="packageName">Synology Drive</span> (<span id="progressNumber">3</span>/18)</h2>
-    <p>Package update may take some time. You can sign in to DSM 7.4 now, and the updates will continue in the
-      background. Please do not shut down the system during this process.</p>
-    <button class="btn-refresh">Refresh</button>
+
+    <!-- Login 頁面內容 -->
+    <div id="pageLogin" class="page-content" style="display: none;">
+      <button class="btn-login">
+        <div class="general_spin">
+          <svg viewBox="0 0 50 50">
+            <circle cx="25" cy="25" r="20" pathLength="360" />
+          </svg>
+        </div>
+      </button>
+    </div>
   </main>
 
   <script>
@@ -557,6 +613,29 @@
       const inputColor = document.getElementById('inputColor');
       const inputColorText = document.getElementById('inputColorText');
 
+      // --- ➌ 頁面狀態與切換機制 ---
+      const pageStates = {
+        fti: {
+          seconds: 2.0,
+          size: 56,
+          strokeWidth: 3,
+          color: '#292929',
+          preset: 'ease-in-out',
+          bezierText: '0.30, 0.00, 0.30, 1.00',
+          bezierCoords: [0.30, 0.00, 0.30, 1.00]
+        },
+        login: {
+          seconds: 2.0,
+          size: 18,
+          strokeWidth: 2,
+          color: '#ffffff',
+          preset: 'ease-in-out',
+          bezierText: '0.30, 0.00, 0.30, 1.00',
+          bezierCoords: [0.30, 0.00, 0.30, 1.00]
+        }
+      };
+      let currentPage = 'fti';
+
       // 1. 秒數連動調整
       inputSeconds.addEventListener('input', () => {
         let val = parseFloat(inputSeconds.value);
@@ -564,6 +643,7 @@
           const timeStr = val + 's';
           document.documentElement.style.setProperty('--loader-time', timeStr);
           document.documentElement.style.setProperty('--loader-dash-time', timeStr);
+          pageStates[currentPage].seconds = val;
         }
       });
 
@@ -575,22 +655,25 @@
         const timeStr = val + 's';
         document.documentElement.style.setProperty('--loader-time', timeStr);
         document.documentElement.style.setProperty('--loader-dash-time', timeStr);
+        pageStates[currentPage].seconds = val;
       });
 
       // 2. 尺寸調整
       inputSize.addEventListener('input', () => {
         let val = parseFloat(inputSize.value);
         if (!isNaN(val)) {
-          document.documentElement.style.setProperty('--loader-size', val + 'px');
+          document.documentElement.style.setProperty('--loader-size-num', val);
+          pageStates[currentPage].size = val;
         }
       });
 
       inputSize.addEventListener('change', () => {
         let val = parseFloat(inputSize.value);
-        if (isNaN(val) || val < 24) val = 24;
+        if (isNaN(val) || val < 14) val = 14;
         if (val > 150) val = 150;
         inputSize.value = val;
-        document.documentElement.style.setProperty('--loader-size', val + 'px');
+        document.documentElement.style.setProperty('--loader-size-num', val);
+        pageStates[currentPage].size = val;
       });
 
       // 3. 粗細調整
@@ -598,6 +681,7 @@
         let val = parseFloat(inputStrokeWidth.value);
         if (!isNaN(val)) {
           document.documentElement.style.setProperty('--loader-stroke-width', val + 'px');
+          pageStates[currentPage].strokeWidth = val;
         }
       });
 
@@ -607,11 +691,13 @@
         if (val > 15) val = 15;
         inputStrokeWidth.value = val;
         document.documentElement.style.setProperty('--loader-stroke-width', val + 'px');
+        pageStates[currentPage].strokeWidth = val;
       });
 
       // 4. 顏色調整 (Picker 與 Text 連動)
       function updateColor(hexColor) {
         document.documentElement.style.setProperty('--loader-stroke-color', hexColor);
+        pageStates[currentPage].color = hexColor;
       }
 
       inputColor.addEventListener('input', () => {
@@ -631,7 +717,7 @@
         }
       });
 
-      // --- ➌ 可拖曳貝氏曲線編輯器 (Pointer Events) ---
+      // --- ➍ 可拖曳貝氏曲線編輯器 (Pointer Events) ---
       const bezierSvg = document.getElementById('bezierSvg');
       const bezierCurvePath = document.getElementById('bezierCurvePath');
       const handleLine1 = document.getElementById('handleLine1');
@@ -695,6 +781,10 @@
 
         // 套用動態 CSS 變數
         document.documentElement.style.setProperty('--loader-easing', `cubic-bezier(${bezierString})`);
+
+        // 儲存狀態
+        pageStates[currentPage].bezierText = bezierString;
+        pageStates[currentPage].bezierCoords = [x1, y1, x2, y2];
       }
 
       function updateBezierUI() {
@@ -729,6 +819,10 @@
 
         // 套用動態 CSS 變數
         document.documentElement.style.setProperty('--loader-easing', `cubic-bezier(${bezierString})`);
+
+        // 儲存狀態
+        pageStates[currentPage].bezierText = bezierString;
+        pageStates[currentPage].bezierCoords = [x1, y1, x2, y2];
       }
 
       function setBezierCoords(x1, y1, x2, y2) {
@@ -742,6 +836,8 @@
 
       function setActivePreset(type) {
         currentPreset = type;
+        pageStates[currentPage].preset = type; // 儲存當前頁面的 preset
+
         presetButtons.forEach(btn => {
           if (btn.getAttribute('data-type') === type) {
             btn.classList.add('active');
@@ -753,7 +849,7 @@
         if (type === 'ease-in-out') {
           bezierEditorContainer.classList.add('disabled');
           inputBezierText.disabled = true;
-          setBezierCoords(0.42, 0, 0.58, 1);
+          setBezierCoords(0.30, 0.00, 0.30, 1.00);
         } else if (type === 'default') {
           bezierEditorContainer.classList.add('disabled');
           inputBezierText.disabled = true;
@@ -848,11 +944,65 @@
         }
       });
 
-      // 頁面初次載入：初始化預設的 'Default cubic'
-      setActivePreset('default');
+      // --- ➎ 頁面選擇與初始化 ---
+      const pageSelector = document.getElementById('pageSelector');
 
+      function applyStateToUiAndCss(page) {
+        currentPage = page;
 
-      // --- ➍ 模擬進度更新 ---
+        // 1. 更新輸入框的值
+        inputSeconds.value = pageStates[page].seconds;
+        inputSize.value = pageStates[page].size;
+        inputStrokeWidth.value = pageStates[page].strokeWidth;
+        inputColor.value = pageStates[page].color;
+        inputColorText.value = pageStates[page].color;
+        inputBezierText.value = pageStates[page].bezierText;
+
+        // 2. 套用 CSS 變數至 :root
+        const timeStr = pageStates[page].seconds + 's';
+        document.documentElement.style.setProperty('--loader-time', timeStr);
+        document.documentElement.style.setProperty('--loader-dash-time', timeStr);
+        document.documentElement.style.setProperty('--loader-size-num', pageStates[page].size);
+        document.documentElement.style.setProperty('--loader-stroke-width', pageStates[page].strokeWidth + 'px');
+        document.documentElement.style.setProperty('--loader-stroke-color', pageStates[page].color);
+
+        // 3. 切換頁面選擇按鈕的 active 樣式
+        pageSelector.querySelectorAll('.btn-preset').forEach(btn => {
+          if (btn.getAttribute('data-page') === page) {
+            btn.classList.add('active');
+          } else {
+            btn.classList.remove('active');
+          }
+        });
+
+        // 4. 切換頁面內容顯示
+        document.getElementById('pageFti').style.display = (page === 'fti' ? 'flex' : 'none');
+        document.getElementById('pageLogin').style.display = (page === 'login' ? 'flex' : 'none');
+
+        // 5. 切換動態曲線 Preset 與貝氏曲線繪製
+        setActivePreset(pageStates[page].preset);
+
+        // 如果是 custom 模式，另外調用 setBezierCoords 以防 inputBezierText.value 的值被 parse
+        if (pageStates[page].preset === 'custom') {
+          const coords = pageStates[page].bezierCoords;
+          setBezierCoords(coords[0], coords[1], coords[2], coords[3]);
+        }
+      }
+
+      // 綁定頁面選擇按鈕點擊事件
+      pageSelector.querySelectorAll('.btn-preset').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const page = btn.getAttribute('data-page');
+          if (page && page !== currentPage) {
+            applyStateToUiAndCss(page);
+          }
+        });
+      });
+
+      // 初始化頁面為 FTI
+      applyStateToUiAndCss('fti');
+
+      // --- ➏ 模擬進度更新 ---
       let step = 3;
       const packages = [
         "Synology Drive", "Docker", "Active Backup", "Hyper Backup",
@@ -860,9 +1010,11 @@
       ];
 
       setInterval(() => {
-        if (step < 18) step++; else step = 1;
-        document.getElementById('progressNumber').textContent = step;
-        document.getElementById('packageName').textContent = packages[Math.floor(Math.random() * packages.length)];
+        if (currentPage === 'fti') {
+          if (step < 18) step++; else step = 1;
+          document.getElementById('progressNumber').textContent = step;
+          document.getElementById('packageName').textContent = packages[Math.floor(Math.random() * packages.length)];
+        }
       }, 3000);
     })();
   </script>
