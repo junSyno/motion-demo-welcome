@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Press The Power Button</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: Verdana, sans-serif;
+      background: #fff; color: #353535;
+      display: flex; flex-direction: column;
+      height: 100vh; overflow: hidden;
+    }
+
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 24px; height: 56px; flex-shrink: 0;
+    }
+
+    .logo-wrapper { width: 110px; height: 36px; display: flex; align-items: center; }
+
+    .avatar-wrapper { position: relative; }
+
+    .avatar {
+      width: 36px; height: 36px;
+      background: #F7E1EB; color: #6E2343;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; cursor: pointer; user-select: none;
+      transition: box-shadow 0.15s;
+    }
+    .avatar:hover { box-shadow: 0 0 0 3px rgba(110,35,67,0.15); }
+
+    .mode-menu {
+      position: absolute; top: calc(100% + 8px); right: 0;
+      background: white; border: 1px solid #e0e0e0;
+      border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+      width: 280px; overflow: hidden; z-index: 100;
+      opacity: 0; transform: translateY(-6px) scale(0.97);
+      pointer-events: none; transition: opacity 0.15s, transform 0.15s;
+    }
+    .mode-menu.open { opacity: 1; transform: translateY(0) scale(1); pointer-events: all; }
+
+    /* ── Motion Settings Panel ── */
+    .ms-divider { height: 1px; background: #efefef; margin: 4px 0; }
+
+    .ms-toggle {
+      display: flex; align-items: center; gap: 7px;
+      width: 100%; padding: 9px 14px; border: none; background: none;
+      font-family: Verdana, sans-serif; font-size: 11px; color: #999;
+      cursor: pointer; text-align: left; transition: background 0.1s;
+    }
+    .ms-toggle:hover { background: #f5f5f5; }
+    .ms-chevron { transition: transform 0.18s; flex-shrink: 0; }
+    .ms-toggle.open .ms-chevron { transform: rotate(90deg); }
+
+    .ms-panel { overflow: hidden; max-height: 0; transition: max-height 0.35s ease; }
+    .ms-panel.open { max-height: 1600px; }
+
+    .ms-body { padding: 2px 14px 12px; }
+
+    .ms-section-hd {
+      font-size: 9px; color: #c0c0c0;
+      letter-spacing: 0.07em; text-transform: uppercase;
+      padding: 8px 0 5px;
+    }
+
+    /* Param rows */
+    .ms-param-row { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+    .ms-lbl { font-size: 10px; color: #666; flex-shrink: 0; min-width: 36px; }
+    .ms-num-in {
+      font-family: Verdana, sans-serif; font-size: 10px; color: #353535;
+      border: 1px solid #ddd; border-radius: 4px;
+      background: white; padding: 2px 5px; width: 60px; text-align: right;
+    }
+    .ms-num-in:focus { outline: none; border-color: #0575E5; }
+    .ms-unit { font-size: 9px; color: #bbb; flex-shrink: 0; }
+
+    /* Easing group */
+    .ms-ease-group { margin-bottom: 7px; }
+    .ms-ease-header { display: flex; align-items: center; gap: 6px; }
+    .ms-ease-sel {
+      font-family: Verdana, sans-serif; font-size: 10px; color: #353535;
+      border: 1px solid #ddd; border-radius: 4px;
+      background: white; padding: 2px 3px; cursor: pointer; flex: 1;
+    }
+    .ms-custom-wrap {
+      display: none; padding: 8px; margin-top: 5px;
+      background: #fafafa; border: 1px solid #eee; border-radius: 6px;
+    }
+    .ms-custom-wrap.show { display: block; }
+
+    /* Bezier inputs */
+    .ms-bz-inputs {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 4px 10px; margin-bottom: 8px;
+    }
+    .ms-bz-field { display: flex; align-items: center; gap: 3px; }
+    .ms-bz-lbl { font-size: 9px; color: #aaa; width: 14px; flex-shrink: 0; }
+    .ms-bz-in {
+      font-family: Verdana, sans-serif; font-size: 10px; color: #353535;
+      border: 1px solid #ddd; border-radius: 4px;
+      background: white; padding: 2px 4px; width: 100%; text-align: right;
+    }
+    .ms-bz-in:focus { outline: none; border-color: #0575E5; }
+
+    /* Bezier SVG editor */
+    .ms-bz-svg-wrap { display: flex; justify-content: center; }
+    .ms-bz-svg { display: block; cursor: crosshair; border-radius: 4px; }
+
+    .mode-menu-label {
+      font-size: 10px; color: #aaa; padding: 10px 14px 6px;
+      letter-spacing: 0.08em; text-transform: uppercase;
+    }
+
+    .mode-menu button {
+      display: flex; align-items: center; gap: 10px;
+      width: 100%; padding: 10px 14px; border: none; background: none;
+      font-family: Verdana, sans-serif; font-size: 13px; color: #353535;
+      cursor: pointer; text-align: left; transition: background 0.1s;
+    }
+    .mode-menu button:hover { background: #f5f5f5; }
+    .mode-menu button.active { background: #EEF5FF; color: #0575E5; }
+
+    .mode-badge {
+      font-size: 11px; font-weight: bold;
+      background: #e8e8e8; color: #666;
+      border-radius: 5px; padding: 2px 7px; flex-shrink: 0;
+    }
+    .mode-menu button.active .mode-badge { background: #0575E5; color: white; }
+
+    main { flex: 1; display: flex; align-items: center; justify-content: center; }
+
+    .viewport {
+      width: 960px; max-height: 640px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+    }
+
+    .panel {
+      width: 100%; padding: 24px 160px;
+      display: flex; flex-direction: column; align-items: flex-start;
+    }
+
+    .header-section {
+      width: 100%; display: flex; flex-direction: column;
+      align-items: center; gap: 12px;
+    }
+
+    h1 { font-size: 24px; font-weight: bold; line-height: 32px; text-align: center; }
+
+    .description {
+      font-size: 14px; line-height: 20px;
+      text-align: center; padding: 4px 0; width: 100%;
+    }
+
+    .power-button-container {
+      position: relative; width: 400px; height: 240px; flex-shrink: 0;
+    }
+
+    #powerSvg {
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    /* Glow wrappers: contract/expand transition separate from pulse animation */
+    .glow-wrapper {
+      transform-box: fill-box; transform-origin: center;
+      transition: transform 0.22s cubic-bezier(0.4, 0, 0.8, 1), opacity 0.18s ease;
+    }
+
+    .glow-outer {
+      animation: pulse-glow 2.4s ease-in-out infinite;
+      transform-box: fill-box; transform-origin: center;
+    }
+    .glow-inner {
+      animation: pulse-glow 2.4s ease-in-out infinite 0.3s;
+      transform-box: fill-box; transform-origin: center;
+    }
+    @keyframes pulse-glow {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.4; transform: scale(0.92); }
+    }
+
+    .footer-section {
+      width: 100%; display: flex; flex-direction: column;
+      align-items: center; gap: 24px; padding-top: 32px;
+    }
+
+    .retry-btn {
+      background: #474747; color: white;
+      border: 1px solid transparent; border-radius: 1000px;
+      height: 42px; min-width: 180px; padding: 0 24px;
+      font-family: Verdana, sans-serif; font-size: 15px; text-align: center;
+      opacity: 0.4; cursor: not-allowed;
+      display: flex; align-items: center; justify-content: center;
+      transition: opacity 0.3s, background 0.2s;
+    }
+    .retry-btn.active { opacity: 1; cursor: pointer; }
+    .retry-btn.active:hover { background: #353535; }
+
+    .back-link {
+      font-family: Verdana, sans-serif; font-size: 14px;
+      color: #353535; text-decoration: underline;
+      background: none; border: none; cursor: pointer; padding: 0;
+    }
+    .back-link:hover { opacity: 0.6; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo-wrapper">
+    <svg viewBox="0 0 109.308 28" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:109.308px;height:28px;">
+      <path d="M61.8969 0V18.2618C61.8969 19.1327 61.9621 19.7094 62.0825 19.9859C62.2109 20.2742 62.4025 20.4875 62.6612 20.6317C62.9238 20.7778 63.4116 20.8529 64.1147 20.8529V21.3999H57.3665V20.8529C57.9985 20.8529 58.429 20.7877 58.6719 20.6495C58.8951 20.5132 59.0768 20.3078 59.2071 20.0017C59.3394 19.7035 59.3987 19.1229 59.3987 18.2638V5.80223C59.3987 4.23417 59.3671 3.27437 59.2999 2.91296C59.2367 2.55353 59.1222 2.3126 58.9721 2.1862C58.82 2.05191 58.6285 1.97489 58.3954 1.97489C58.1426 1.97489 57.8207 2.06771 57.4317 2.21978L57.1749 1.68458L61.2294 0H61.8969Z" fill="#353535"/>
+      <path d="M3.80364 14.6873L0 15.0427C0.256736 17.225 1.04077 18.8918 2.35407 20.0372C3.66935 21.1866 5.56327 21.7613 8.02201 21.7613C9.71054 21.7613 11.1206 21.5125 12.2542 21.0484C13.3838 20.5724 14.2627 19.8378 14.8808 18.8661C15.5009 17.8965 15.813 16.8399 15.813 15.7241C15.813 14.4858 15.5463 13.4312 15.0349 12.6077C14.5194 11.7624 13.8005 11.0989 12.8881 10.6131C11.9777 10.1272 10.5696 9.65721 8.66188 9.20299C6.75611 8.75864 5.55142 8.32614 5.06165 7.89956C4.67062 7.56975 4.47905 7.18465 4.47905 6.71463C4.47905 6.21103 4.68642 5.81803 5.1051 5.51192C5.74496 5.03399 6.63761 4.80096 7.77515 4.80096C8.87121 4.80096 9.69869 5.02017 10.2457 5.46057C10.8027 5.90295 11.1522 6.62576 11.326 7.60728L15.2639 7.47496C15.2027 5.67781 14.5589 4.24601 13.3266 3.1539C12.0903 2.08351 10.2576 1.54436 7.82255 1.54436C6.3157 1.54436 5.0498 1.77345 3.99521 2.21582C2.93469 2.674 2.12103 3.33361 1.56411 4.20256C0.995345 5.05967 0.720836 5.99774 0.720836 6.98914C0.720836 8.53153 1.31725 9.8468 2.51009 10.929C3.34942 11.6894 4.82269 12.3352 6.92397 12.8526C8.55128 13.2673 9.596 13.5478 10.0581 13.7235C10.7276 13.9506 11.1957 14.237 11.4662 14.553C11.7309 14.8729 11.8671 15.2758 11.8671 15.734C11.8671 16.441 11.5511 17.0591 10.9113 17.6022C10.2655 18.1315 9.31359 18.402 8.05163 18.402C6.85682 18.402 5.9069 18.1038 5.20384 17.5074C4.50275 16.9051 4.03865 15.965 3.80364 14.6873Z" fill="#353535"/>
+      <path d="M19.2649 7.25182H15.3171L20.6631 21.4355C20.4439 22.2235 20.1279 22.8811 19.7112 23.4005C19.2985 23.9081 18.6586 24.1608 17.7995 24.1608C17.3335 24.1608 16.8081 24.0996 16.2295 23.9772L16.5376 26.9138C17.2308 27.0679 17.9338 27.1528 18.6487 27.1528C19.3577 27.1528 19.9897 27.0659 20.5545 26.9138C21.1055 26.7618 21.5775 26.5485 21.9685 26.2858C22.3517 26.0192 22.6933 25.6637 22.9876 25.2194C23.2838 24.7869 23.5919 24.1589 23.9197 23.3314L24.8262 20.8509L29.7733 7.25182H25.9242L22.638 17.2941L19.2649 7.25182Z" fill="#353535"/>
+      <path d="M42.7188 21.398H39.004V14.1975C39.004 12.6808 38.927 11.7032 38.7631 11.251C38.5992 10.8046 38.3484 10.4571 37.981 10.2082C37.6216 9.96334 37.1812 9.83694 36.6756 9.83694C36.0219 9.83694 35.4433 10.0186 34.9199 10.3741C34.3966 10.7276 34.0451 11.1917 33.8535 11.7684C33.6659 12.3589 33.5652 13.4312 33.5652 15.0151V21.3999H29.8543V7.25181H33.2907V9.32347C34.5269 7.75738 36.0792 6.98323 37.9534 6.98323C38.7848 6.98323 39.5392 7.13529 40.2245 7.41968C40.9098 7.72579 41.4331 8.09311 41.7768 8.56116C42.1243 9.02329 42.3692 9.54466 42.5094 10.1253C42.6477 10.7 42.7188 11.5472 42.7188 12.6334V21.398Z" fill="#353535"/>
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M43.6628 10.5617C43.0525 11.7308 42.7425 12.9217 42.7425 14.1757C42.7425 15.7951 43.0505 17.1697 43.6608 18.2973C44.273 19.4329 45.1656 20.292 46.3407 20.8785C47.5217 21.4631 48.754 21.7613 50.0476 21.7613C52.141 21.7613 53.8828 21.0483 55.2613 19.6462C56.6398 18.2341 57.333 16.4686 57.333 14.3298C57.333 12.2127 56.6477 10.457 55.2791 9.06668C53.9164 7.67635 52.1666 6.98514 50.0239 6.98514C48.6415 6.98514 47.3854 7.28335 46.2637 7.89754C45.14 8.51371 44.273 9.40438 43.6628 10.5617ZM47.5513 17.5864C46.8779 16.8537 46.5481 15.7754 46.5481 14.3633C46.5481 12.9612 46.8799 11.8809 47.5513 11.1403C48.2208 10.3997 49.0404 10.0166 50.0219 10.0166C51.0034 10.0166 51.825 10.4017 52.4925 11.1403C53.1501 11.8789 53.4799 12.9473 53.4799 14.3456C53.4799 15.7616 53.1501 16.8537 52.4925 17.5864C51.823 18.3427 51.0034 18.718 50.0219 18.718C49.0404 18.718 48.2188 18.3408 47.5513 17.5864Z" fill="#353535"/>
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M75.8495 9.58412C74.5816 7.99829 72.9069 7.20636 70.8135 7.20636C69.6701 7.20636 68.5859 7.50851 67.5648 8.09506C66.5379 8.70727 65.7144 9.61967 65.0804 10.8777C64.4564 12.1179 64.1423 13.366 64.1423 14.63C64.1423 16.3679 64.6617 17.932 65.6946 19.3223C66.9171 20.9713 68.5701 21.7988 70.6555 21.7988C71.9313 21.7988 73.0827 21.4769 74.1234 20.8351C75.1701 20.1972 75.9838 19.2433 76.5763 17.9814C77.1707 16.7234 77.461 15.4772 77.461 14.2389C77.461 12.4872 76.9238 10.933 75.8495 9.58412ZM68.7498 8.6816C69.2869 8.35772 69.8202 8.21947 70.3534 8.21947C71.4534 8.21947 72.3599 8.68357 73.0728 9.63745C74.1254 11.0416 74.6527 12.9493 74.6527 15.3923C74.6527 17.3454 74.3348 18.718 73.6988 19.5159C73.0728 20.3078 72.2749 20.7166 71.2934 20.7166C69.992 20.7166 68.9433 19.9839 68.1435 18.5462C67.3515 17.0848 66.9467 15.3765 66.9467 13.3739C66.9467 12.1357 67.1146 11.1245 67.4444 10.3267C67.7761 9.54463 68.2126 9.00153 68.7498 8.6816Z" fill="#353535"/>
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M80.4807 16.3481C79.6433 15.9216 79.0054 15.3607 78.5512 14.624C78.1068 13.8795 77.8817 13.0738 77.8817 12.189C77.8817 10.8244 78.3873 9.64732 79.4103 8.6816C80.4372 7.70008 81.7525 7.20636 83.3522 7.20636C84.6595 7.20636 85.7931 7.51444 86.7529 8.15825H89.6639C90.0984 8.15825 90.3453 8.17208 90.4203 8.19775C90.4835 8.22935 90.5289 8.27477 90.5664 8.32612C90.6237 8.41894 90.6573 8.57891 90.6573 8.80602C90.6573 9.06868 90.6296 9.26024 90.5803 9.35306C90.5487 9.40244 90.4993 9.44983 90.4203 9.46958C90.3453 9.4992 90.0964 9.51303 89.66 9.51303H87.8648C88.4336 10.2378 88.714 11.164 88.714 12.2897C88.714 13.5695 88.2163 14.6734 87.2407 15.5819C86.2592 16.4943 84.9459 16.9564 83.3028 16.9564C82.6215 16.9564 81.9263 16.8557 81.2134 16.6325C80.7947 17.0275 80.5103 17.3553 80.3681 17.6417C80.216 17.9359 80.139 18.1729 80.139 18.3665C80.139 18.5501 80.22 18.7081 80.3918 18.876C80.5518 19.032 80.8796 19.1505 81.3595 19.2137C81.632 19.267 82.341 19.3045 83.4568 19.3361C85.5147 19.4013 86.8517 19.4783 87.454 19.583C88.3862 19.7114 89.1327 20.0629 89.6876 20.6139C90.2406 21.1708 90.519 21.8502 90.519 22.6638C90.519 23.7796 89.9858 24.8441 88.9273 25.8276C87.377 27.2752 85.3448 28 82.8387 28C80.9132 28 79.2839 27.5754 77.9568 26.7045C77.2063 26.2028 76.837 25.6894 76.837 25.1443C76.837 24.9132 76.8903 24.6683 76.993 24.4274C77.1589 24.0502 77.5045 23.5565 78.0219 22.8949C78.0891 22.8001 78.5947 22.2629 79.5229 21.2794C79.0074 20.9555 78.6381 20.683 78.4288 20.4283C78.2155 20.1834 78.1049 19.899 78.1049 19.5909C78.1049 19.2334 78.2431 18.8246 78.5236 18.3566C78.8119 17.8747 79.4636 17.2013 80.4807 16.3481ZM80.3563 21.3979C79.8981 21.8956 79.5564 22.3715 79.3194 22.8198C79.0805 23.2385 78.9719 23.6493 78.9719 24.0087C78.9719 24.5005 79.2562 24.9132 79.8369 25.2707C80.8381 25.8829 82.2857 26.2009 84.1737 26.2009C85.9709 26.2009 87.2921 25.8829 88.1531 25.2509C89.0122 24.6229 89.4368 23.9534 89.4368 23.2385C89.4368 22.729 89.1801 22.3617 88.6686 22.1405C88.1452 21.9193 87.1163 21.7909 85.566 21.7593C83.3067 21.6922 81.5669 21.5599 80.3563 21.3979ZM83.1014 7.96669C82.3608 7.96669 81.7505 8.27477 81.2489 8.86329C80.7532 9.44983 80.5063 10.3306 80.5063 11.5491C80.5063 13.1192 80.844 14.3357 81.5195 15.2066C82.0408 15.8623 82.6926 16.1901 83.4845 16.1901C84.2409 16.1901 84.8669 15.8998 85.3488 15.333C85.8366 14.7662 86.0775 13.8815 86.0775 12.6748C86.0775 11.085 85.7398 9.85271 85.0545 8.96006C84.5391 8.30834 83.8913 7.96669 83.1014 7.96669Z" fill="#353535"/>
+      <path d="M97.528 7.60925H91.0859V8.15629C91.5974 8.27874 91.9706 8.42488 92.2017 8.57497C92.3617 8.70334 92.567 8.9423 92.8198 9.28988C93.1477 9.75596 93.3886 10.1391 93.5407 10.4531L98.4976 20.8153L97.524 23.2148C97.1626 24.0976 96.8052 24.698 96.4497 25.0041C96.0883 25.3122 95.7644 25.4761 95.4622 25.4761C95.3595 25.4761 95.1028 25.3892 94.7019 25.251C94.1292 25.0396 93.671 24.931 93.3372 24.931C92.8574 24.931 92.4683 25.0475 92.1918 25.3142C91.9153 25.5748 91.7771 25.9007 91.7771 26.3174C91.7771 26.7637 91.9687 27.1528 92.3498 27.4885C92.7369 27.84 93.2227 27.998 93.8171 27.998C94.6348 27.998 95.484 27.6702 96.3648 26.9829C97.2475 26.2996 97.9585 25.2984 98.5036 23.9594L104.087 10.226C104.331 9.59402 104.509 9.21681 104.602 9.07067C104.841 8.74679 105.06 8.52757 105.264 8.40316C105.463 8.28466 105.751 8.19974 106.121 8.16024V7.60925H101.665V8.16024C102.092 8.16024 102.398 8.19974 102.564 8.26689C102.734 8.32613 102.858 8.42093 102.941 8.52757C103.004 8.61644 103.048 8.74679 103.048 8.92453C103.048 9.34123 102.961 9.74213 102.791 10.1608L99.7181 17.774L96.3588 10.8046C96.0231 10.1154 95.8631 9.57822 95.8631 9.17929C95.8631 8.89688 95.9718 8.65397 96.1969 8.45253C96.424 8.26689 96.7597 8.16024 97.2159 8.16024H97.528V7.60925Z" fill="#353535"/>
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M107.173 3.07513C105.991 3.07513 105.033 4.02606 105.033 5.21174C105.033 6.39014 105.989 7.36019 107.173 7.36019C108.35 7.36019 109.308 6.38996 109.308 5.21174C109.308 4.02624 108.348 3.07513 107.173 3.07513ZM106.097 3.93787H107.308C107.555 3.93787 107.738 3.96947 107.869 4.02674C108.001 4.07216 108.092 4.15708 108.171 4.27558C108.248 4.40987 108.283 4.54811 108.283 4.69228C108.283 4.89372 108.224 5.05764 108.092 5.186C107.971 5.32425 107.776 5.41312 107.513 5.44866C107.614 5.49409 107.685 5.54346 107.73 5.58296C107.837 5.67973 107.938 5.80019 108.029 5.94239L108.433 6.57889C108.799 6.23681 109.028 5.74942 109.028 5.21174C109.028 4.18141 108.194 3.35511 107.173 3.35511C106.144 3.35511 105.313 4.18159 105.313 5.21174C105.313 6.23731 106.146 7.08021 107.173 7.08021C107.594 7.08021 107.983 6.937 108.295 6.6968H108.056L107.691 6.12803L107.622 6.02661C107.545 5.91415 107.48 5.81823 107.428 5.75082C107.355 5.658 107.3 5.60271 107.244 5.55531C107.205 5.52838 107.16 5.51542 107.114 5.50218C107.103 5.49891 107.092 5.49563 107.081 5.49211C107.039 5.48026 106.966 5.47434 106.873 5.47434H106.458V6.6968H106.097V3.93787ZM107.237 5.16033C107.4 5.16033 107.533 5.15046 107.624 5.10306C107.72 5.08331 107.788 5.01616 107.837 4.94309C107.89 4.8641 107.912 4.77918 107.912 4.69031C107.912 4.56391 107.867 4.45924 107.77 4.37432C107.677 4.29138 107.529 4.2499 107.329 4.2499H106.458V5.16033H107.237Z" fill="#353535"/>
+    </svg>
+  </div>
+
+  <div class="avatar-wrapper">
+    <div class="avatar" id="avatarBtn">W</div>
+    <div class="mode-menu" id="modeMenu">
+      <div class="mode-menu-label">Animation Mode</div>
+      <button id="btnModeA" class="active" onclick="setMode('A')">
+        <span class="mode-badge">A</span> Progress Arc
+      </button>
+      <button id="btnModeB" onclick="setMode('B')">
+        <span class="mode-badge">B</span> Ripple Rings
+      </button>
+      <button id="btnModeC" onclick="setMode('C')">
+        <span class="mode-badge">C</span> Liquid Fill
+      </button>
+
+      <div class="ms-divider"></div>
+
+      <button class="ms-toggle" id="msToggle">
+        <svg class="ms-chevron" width="10" height="10" viewBox="0 0 10 10" fill="none">
+          <path d="M3 2L7 5L3 8" stroke="#bbb" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Motion Settings
+      </button>
+
+      <div class="ms-panel" id="msPanel">
+        <div class="ms-body">
+
+          <div class="ms-section-hd">光暈收縮 Glow Contract</div>
+
+          <!-- Duration -->
+          <div class="ms-param-row">
+            <span class="ms-lbl">時間</span>
+            <input class="ms-num-in" type="number" id="msCDur" min="0" max="2000" step="10" value="200">
+            <span class="ms-unit">ms</span>
+          </div>
+
+          <!-- Contract Inner Easing -->
+          <div class="ms-ease-group">
+            <div class="ms-ease-header">
+              <span class="ms-lbl">內層</span>
+              <select class="ms-ease-sel" id="msCInnerPreset">
+                <option value="linear">Linear</option>
+                <option value="cubic-bezier(0.4,0,1,1)" selected>Ease In</option>
+                <option value="cubic-bezier(0,0,0.2,1)">Ease Out</option>
+                <option value="cubic-bezier(0.4,0,0.2,1)">Ease In-Out</option>
+                <option value="cubic-bezier(0.2,0,0,1)">Spring</option>
+                <option value="cubic-bezier(0.8,0,1,1)">Snap</option>
+                <option value="custom">自訂曲線…</option>
+              </select>
+            </div>
+            <div class="ms-custom-wrap" id="msCInnerCustom">
+              <div class="ms-bz-inputs">
+                <div class="ms-bz-field"><span class="ms-bz-lbl">x1</span><input class="ms-bz-in" type="number" id="msCInnerX1" min="0" max="1" step="0.01" value="0.4"></div>
+                <div class="ms-bz-field"><span class="ms-bz-lbl">y1</span><input class="ms-bz-in" type="number" id="msCInnerY1" min="-2" max="2" step="0.01" value="0"></div>
+                <div class="ms-bz-field"><span class="ms-bz-lbl">x2</span><input class="ms-bz-in" type="number" id="msCInnerX2" min="0" max="1" step="0.01" value="1"></div>
+                <div class="ms-bz-field"><span class="ms-bz-lbl">y2</span><input class="ms-bz-in" type="number" id="msCInnerY2" min="-2" max="2" step="0.01" value="1"></div>
+              </div>
+              <div class="ms-bz-svg-wrap">
+                <svg class="ms-bz-svg" id="msCInnerSvg" width="110" height="110" viewBox="0 0 110 110"></svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- Contract Outer Easing -->
+          <div class="ms-ease-group">
+            <div class="ms-ease-header">
+              <span class="ms-lbl">外層</span>
+              <select class="ms-ease-sel" id="msCOuterPreset">
+                <option value="linear">Linear</option>
+                <option value="cubic-bezier(0.4,0,1,1)" selected>Ease In</option>
+                <option value="cubic-bezier(0,0,0.2,1)">Ease Out</option>
+                <option value="cubic-bezier(0.4,0,0.2,1)">Ease In-Out</option>
+                <option value="cubic-bezier(0.2,0,0,1)">Spring</option>
+                <option value="cubic-bezier(0.8,0,1,1)">Snap</option>
+                <option value="custom">自訂曲線…</option>
+              </select>
+            </div>
+            <div class="ms-custom-wrap" id="msCOuterCustom">
+              <div class="ms-bz-inputs">
+                <div class="ms-bz-field"><span class="ms-bz-lbl">x1</span><input class="ms-bz-in" type="number" id="msCOuterX1" min="0" max="1" step="0.01" value="0.4"></div>
+                <div class="ms-bz-field"><span class="ms-bz-lbl">y1</span><input class="ms-bz-in" type="number" id="msCOuterY1" min="-2" max="2" step="0.01" value="0"></div>
+                <div class="ms-bz-field"><span class="ms-bz-lbl">x2</span><input class="ms-bz-in" type="number" id="msCOuterX2" min="0" max="1" step="0.01" value="1"></div>
+                <div class="ms-bz-field"><span class="ms-bz-lbl">y2</span><input class="ms-bz-in" type="number" id="msCOuterY2" min="-2" max="2" step="0.01" value="1"></div>
+              </div>
+              <div class="ms-bz-svg-wrap">
+                <svg class="ms-bz-svg" id="msCOuterSvg" width="110" height="110" viewBox="0 0 110 110"></svg>
+              </div>
+            </div>
+          </div>
+
+          <div class="ms-section-hd">光暈展開 Glow Expand</div>
+
+          <!-- Expand Duration -->
+          <div class="ms-param-row">
+            <span class="ms-lbl">時間</span>
+            <input class="ms-num-in" type="number" id="msEDur" min="0" max="2000" step="10" value="1000">
+            <span class="ms-unit">ms</span>
+          </div>
+
+          <!-- Sequence Delay -->
+          <div class="ms-param-row">
+            <span class="ms-lbl">順序延遲</span>
+            <input class="ms-num-in" type="number" id="msEDelay" min="0" max="2000" step="10" value="150">
+            <span class="ms-unit">ms</span>
+          </div>
+
+          <!-- Expand Inner Easing -->
+          <div class="ms-ease-group">
+            <div class="ms-ease-header">
+              <span class="ms-lbl">內層</span>
+              <select class="ms-ease-sel" id="msEInnerPreset">
+                <option value="linear">Linear</option>
+                <option value="cubic-bezier(0.4,0,1,1)">Ease In</option>
+                <option value="cubic-bezier(0,0,0.2,1)" selected>Ease Out</option>
+                <option value="cubic-bezier(0.4,0,0.2,1)">Ease In-Out</option>
+                <option value="cubic-bezier(0.2,0,0,1)">Spring</option>
+                <option value="cubic-bezier(0.8,0,1,1)">Snap</option>
+                <option value="custom">自訂曲線…</option>
+              </select>
+            </div>
+            <div class="ms-custom-wrap" id="msEInnerCustom">
+              <div class="ms-bz-inputs">
+                <div class="ms-bz-field"><span class="ms-bz-lbl">x1</span><input class="ms-bz-in" type="number" id="msEInnerX1" min="0" max="1" step="0.01" value="0"></div>
+                <div class="ms-bz-field"><span class="ms-bz-lbl">y1</span><input class="ms-bz-in" type="number" id="msEInnerY1" min="-2" max="2" step="0.01" value="0"></div>
+                <div class="ms-bz-field"><span class="ms-bz-lbl">x2</span><input class="ms-bz-in" type="number" id="msEInnerX2" min="0" max="1" step="0.01" value="0.2"></div>
+                <div class="ms-bz-field"><span class="ms-bz-lbl">y2</span><input class="ms-bz-in" type="number" id="msEInnerY2" min="-2" max="2" step="0.01" value="1"></div>
+              </div>
+              <div class="ms-bz-svg-wrap">
+                <svg class="ms-bz-svg" id="msEInnerSvg" width="110" height="110" viewBox="0 0 110 110"></svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- Expand Outer Easing -->
+          <div class="ms-ease-group">
+            <div class="ms-ease-header">
+              <span class="ms-lbl">外層</span>
+              <select class="ms-ease-sel" id="msEOuterPreset">
+                <option value="linear">Linear</option>
+                <option value="cubic-bezier(0.4,0,1,1)">Ease In</option>
+                <option value="cubic-bezier(0,0,0.2,1)" selected>Ease Out</option>
+                <option value="cubic-bezier(0.4,0,0.2,1)">Ease In-Out</option>
+                <option value="cubic-bezier(0.2,0,0,1)">Spring</option>
+                <option value="cubic-bezier(0.8,0,1,1)">Snap</option>
+                <option value="custom">自訂曲線…</option>
+              </select>
+            </div>
+            <div class="ms-custom-wrap" id="msEOuterCustom">
+              <div class="ms-bz-inputs">
+                <div class="ms-bz-field"><span class="ms-bz-lbl">x1</span><input class="ms-bz-in" type="number" id="msEOuterX1" min="0" max="1" step="0.01" value="0"></div>
+                <div class="ms-bz-field"><span class="ms-bz-lbl">y1</span><input class="ms-bz-in" type="number" id="msEOuterY1" min="-2" max="2" step="0.01" value="0"></div>
+                <div class="ms-bz-field"><span class="ms-bz-lbl">x2</span><input class="ms-bz-in" type="number" id="msEOuterX2" min="0" max="1" step="0.01" value="0.2"></div>
+                <div class="ms-bz-field"><span class="ms-bz-lbl">y2</span><input class="ms-bz-in" type="number" id="msEOuterY2" min="-2" max="2" step="0.01" value="1"></div>
+              </div>
+              <div class="ms-bz-svg-wrap">
+                <svg class="ms-bz-svg" id="msEOuterSvg" width="110" height="110" viewBox="0 0 110 110"></svg>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="viewport">
+    <div class="panel">
+      <div class="header-section">
+        <h1>Hold the power button</h1>
+        <p class="description">
+          Press and hold the power button for <strong>4 seconds</strong> until you hear a beep. This confirms you have physical access to the device before linking it to your account.
+        </p>
+
+        <div class="power-button-container">
+          <svg id="powerSvg" viewBox="0 0 400 240" width="400" height="240" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="btn-gradient" x1="200" y1="72" x2="200" y2="168" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#5A6168"/>
+                <stop offset="1" stop-color="#30363D"/>
+              </linearGradient>
+              <clipPath id="btnClip">
+                <rect x="152" y="72" width="96" height="96" rx="48"/>
+              </clipPath>
+              <filter id="glow-blur" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="4"/>
+              </filter>
+              <filter id="button-edge-glow" x="-8%" y="-8%" width="116%" height="116%">
+                <feDropShadow dx="0" dy="0" stdDeviation="1.5" flood-color="#0575E5" flood-opacity="0.55"/>
+              </filter>
+            </defs>
+
+            <!-- Outer glow ring — #5FA7FA (original colour) -->
+            <g id="glowOuterWrapper" class="glow-wrapper">
+              <g class="glow-outer">
+                <circle cx="200" cy="120" r="96" fill="#5FA7FA" fill-opacity="0.08" filter="url(#glow-blur)"/>
+              </g>
+            </g>
+
+            <!-- Inner glow ring -->
+            <g id="glowInnerWrapper" class="glow-wrapper">
+              <g class="glow-inner">
+                <circle cx="200" cy="120" r="68" fill="#5FA7FA" fill-opacity="0.12" filter="url(#glow-blur)"/>
+              </g>
+            </g>
+
+            <!-- Mode A: arc track + progress arc (hidden until hold starts) -->
+            <g id="arcLayer" style="display:none">
+              <circle cx="200" cy="120" r="54"
+                stroke="#e0e0e0" stroke-width="2.5" fill="none" opacity="0.5"
+                transform="rotate(-90 200 120)"/>
+              <circle id="progressArc" cx="200" cy="120" r="54"
+                stroke="#0575E5" stroke-width="2.5" fill="none"
+                stroke-dasharray="339.29" stroke-dashoffset="339.29"
+                stroke-linecap="round"
+                transform="rotate(-90 200 120)"/>
+            </g>
+
+            <!-- Button body -->
+            <rect x="152" y="72" width="96" height="96" rx="48"
+              fill="url(#btn-gradient)" filter="url(#button-edge-glow)"/>
+
+            <!-- Mode C: liquid fill -->
+            <rect id="liquidRect" x="152" y="168" width="96" height="0"
+              fill="#0575E5" clip-path="url(#btnClip)" opacity="1"/>
+
+            <!-- Mode B: ripple rings container -->
+            <g id="rippleLayer"></g>
+
+            <!-- Blue success tint inside button (A & B; stays after success) -->
+            <circle id="successCircle" cx="200" cy="120" r="48"
+              fill="#0575E5" opacity="0" clip-path="url(#btnClip)"/>
+
+            <!-- Mode C: white flash on success -->
+            <circle id="flashOverlay" cx="200" cy="120" r="48"
+              fill="white" opacity="0" clip-path="url(#btnClip)"/>
+
+            <!-- Power icon -->
+            <path d="M207 99.0381C216.84 102.034 224 111.179 224 121.999C224 135.254 213.255 145.999 200 145.999C186.745 145.999 176 135.254 176 121.999C176 111.179 183.16 102.034 193 99.0381V103.259C185.407 106.096 180 113.416 180 121.999C180 133.045 188.954 141.999 200 141.999C211.046 141.999 220 133.045 220 121.999C220 113.416 214.593 106.096 207 103.259V99.0381ZM200 90C201.105 90 202 90.8954 202 92V114C202 115.105 201.105 116 200 116C198.895 116 198 115.105 198 114V92C198 90.8954 198.895 90 200 90Z"
+              fill="white"/>
+
+            <!-- Press darkening overlay -->
+            <rect id="pressOverlay" x="152" y="72" width="96" height="96" rx="48"
+              fill="black" opacity="0" clip-path="url(#btnClip)"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="footer-section">
+        <button class="retry-btn" id="retryBtn" disabled>
+          Retry (<span id="countdown">59</span>)
+        </button>
+        <button class="back-link" onclick="history.back()">Back</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+  // ── State machine: 'idle' | 'holding' | 'success' ──
+  let state         = 'idle';
+  let currentMode   = 'A';
+  let holdStartTime = 0;
+  let holdRafId     = null;
+  let lastTickB     = -1;
+  let glowRestoreTimer = null;
+  let glowOuterTimer   = null;
+
+  const progressArc      = document.getElementById('progressArc');
+  const arcLayer         = document.getElementById('arcLayer');
+  const liquidRect       = document.getElementById('liquidRect');
+  const rippleLayer      = document.getElementById('rippleLayer');
+  const successCircle    = document.getElementById('successCircle');
+  const flashOverlay     = document.getElementById('flashOverlay');
+  const pressOverlay     = document.getElementById('pressOverlay');
+  const glowOuterWrapper = document.getElementById('glowOuterWrapper');
+  const glowInnerWrapper = document.getElementById('glowInnerWrapper');
+
+  // ── Dropdown ──
+  document.getElementById('avatarBtn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    document.getElementById('modeMenu').classList.toggle('open');
+  });
+  document.addEventListener('click', (e) => {
+    const menu = document.getElementById('modeMenu');
+    if (!menu.contains(e.target)) menu.classList.remove('open');
+  });
+
+  function setMode(mode) {
+    currentMode = mode;
+    document.querySelectorAll('.mode-menu button').forEach(b => b.classList.remove('active'));
+    document.getElementById('btnMode' + mode).classList.add('active');
+    document.getElementById('modeMenu').classList.remove('open');
+    state = 'idle';
+    resetHold();
+    restoreGlows();
+  }
+
+  // ── Motion Settings data ──
+  const ms = {
+    contract: {
+      dur: 200,
+      inner: { easing: 'cubic-bezier(0.4,0,1,1)' },
+      outer: { easing: 'cubic-bezier(0.4,0,1,1)' }
+    },
+    expand: {
+      dur: 1000,
+      inner: { easing: 'cubic-bezier(0,0,0.2,1)' },
+      outer: { easing: 'cubic-bezier(0,0,0.2,1)', delay: 150 }
+    }
+  };
+
+  // ── Glow contract / restore ──
+  function contractGlows() {
+    clearTimeout(glowRestoreTimer);
+    clearTimeout(glowOuterTimer);
+    const { dur, inner, outer } = ms.contract;
+    glowInnerWrapper.style.transition = `transform ${dur}ms ${inner.easing}, opacity ${dur + 20}ms ease-in`;
+    glowOuterWrapper.style.transition = `transform ${dur}ms ${outer.easing}, opacity ${dur + 20}ms ease-in`;
+    glowInnerWrapper.getBoundingClientRect(); // force reflow
+    glowInnerWrapper.style.transform = 'scale(0)';
+    glowInnerWrapper.style.opacity   = '0';
+    glowOuterWrapper.style.transform = 'scale(0)';
+    glowOuterWrapper.style.opacity   = '0';
+  }
+
+  function restoreGlows() {
+    clearTimeout(glowRestoreTimer);
+    clearTimeout(glowOuterTimer);
+    const { dur, inner, outer } = ms.expand;
+    const opDur = Math.round(dur * 0.8);
+
+    // Inner glow: expand immediately
+    glowInnerWrapper.style.transition = `transform ${dur}ms ${inner.easing}, opacity ${opDur}ms ease`;
+    glowInnerWrapper.style.transform  = 'scale(1)';
+    glowInnerWrapper.style.opacity    = '1';
+
+    // Outer glow: expand after delay (setTimeout more reliable than CSS delay on SVG)
+    glowOuterTimer = setTimeout(() => {
+      glowOuterWrapper.style.transition = `transform ${dur}ms ${outer.easing}, opacity ${opDur}ms ease`;
+      glowOuterWrapper.style.transform  = 'scale(1)';
+      glowOuterWrapper.style.opacity    = '1';
+    }, outer.delay);
+
+    glowRestoreTimer = setTimeout(() => {
+      if (state === 'success') return;
+      [glowOuterWrapper, glowInnerWrapper].forEach(el => {
+        el.style.transition = '';
+        el.style.transform  = '';
+        el.style.opacity    = '';
+      });
+    }, dur + outer.delay + 50);
+  }
+
+  // ── Input: left mouse button or spacebar ──
+  function startHold(e) {
+    if (e.type === 'mousedown' && e.button !== 0) return;
+    if (e.preventDefault) e.preventDefault();
+
+    if (state === 'success') {
+      // Reset success visuals and immediately start a new hold
+      state = 'idle';
+      resetHold();
+      // Glows stay contracted — contractGlows() below is a safe no-op
+    }
+    if (state !== 'idle') return;
+
+    state         = 'holding';
+    holdStartTime = performance.now();
+    lastTickB     = -1;
+    pressOverlay.setAttribute('opacity', '0.12');
+    contractGlows();
+    if (currentMode === 'A') arcLayer.style.display = '';
+    requestAnimationFrame(animateHold);
+  }
+
+  function endHold(e) {
+    if (e.type === 'mouseup' && e.button !== 0) return;
+    if (state !== 'holding') return;
+    state = 'idle';
+    pressOverlay.setAttribute('opacity', '0');
+    if ((performance.now() - holdStartTime) < 4000) {
+      resetHold();
+      restoreGlows();
+    }
+  }
+
+  // Mouse events on SVG only (start), window (end)
+  document.getElementById('powerSvg').addEventListener('mousedown', startHold);
+  window.addEventListener('mouseup', endHold);
+
+  // Spacebar events on window
+  window.addEventListener('keydown', (e) => {
+    if (e.key === ' ') { e.preventDefault(); if (!e.repeat) startHold(e); }
+  });
+  window.addEventListener('keyup', (e) => {
+    if (e.key === ' ') { e.preventDefault(); endHold(e); }
+  });
+
+  // ── Hold animation loop ──
+  function animateHold(now) {
+    if (state !== 'holding') return;
+    const elapsed  = now - holdStartTime;
+    const progress = Math.min(elapsed / 4000, 1);
+
+    if (currentMode === 'A') {
+      progressArc.style.strokeDashoffset = (339.29 * (1 - progress)).toFixed(2);
+
+    } else if (currentMode === 'B') {
+      const tick = Math.floor(elapsed / 1000);
+      if (tick > lastTickB && tick < 4) { lastTickB = tick; spawnRipple(); }
+
+    } else if (currentMode === 'C') {
+      const fillH = 96 * progress;
+      liquidRect.setAttribute('y', (168 - fillH).toFixed(2));
+      liquidRect.setAttribute('height', fillH.toFixed(2));
+    }
+
+    if (progress >= 1) triggerSuccess();
+    else holdRafId = requestAnimationFrame(animateHold);
+  }
+
+  // ── Mode B: spawn ripple ring ──
+  function spawnRipple() {
+    const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    c.setAttribute('cx', '200'); c.setAttribute('cy', '120');
+    c.setAttribute('r', '48'); c.setAttribute('fill', 'none');
+    c.setAttribute('stroke', '#0575E5'); c.setAttribute('stroke-width', '2');
+    c.setAttribute('opacity', '0.5');
+    rippleLayer.appendChild(c);
+
+    const startT = performance.now();
+    (function anim(now) {
+      if (!c.parentNode) return;
+      const t = Math.min((now - startT) / 1400, 1);
+      if (t >= 1) { c.remove(); return; }
+      c.setAttribute('r',       (48 + 52 * t).toFixed(2));
+      c.setAttribute('opacity', (0.5 * (1 - t)).toFixed(3));
+      requestAnimationFrame(anim);
+    })(performance.now());
+  }
+
+  // ── Success ──
+  function triggerSuccess() {
+    state = 'success';
+    if (holdRafId) cancelAnimationFrame(holdRafId);
+    pressOverlay.setAttribute('opacity', '0');
+    contractGlows(); // keep glows contracted for all modes
+
+    if      (currentMode === 'A') triggerSuccessA();
+    else if (currentMode === 'B') triggerSuccessB();
+    else                          triggerSuccessC();
+  }
+
+  // Mode A: arc stays full; button fades to solid blue
+  function triggerSuccessA() {
+    const startT = performance.now(), dur = 250;
+    (function anim(now) {
+      const t = Math.min((now - startT) / dur, 1);
+      successCircle.setAttribute('opacity', t.toFixed(3));
+      if (t < 1) requestAnimationFrame(anim);
+    })(performance.now());
+  }
+
+  // Mode B: blue tint stays; burst ring expands and fades out completely
+  function triggerSuccessB() {
+    successCircle.setAttribute('opacity', '1');
+
+    const ring = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    ring.setAttribute('cx', '200'); ring.setAttribute('cy', '120');
+    ring.setAttribute('r', '48'); ring.setAttribute('fill', 'none');
+    ring.setAttribute('stroke', '#0575E5'); ring.setAttribute('stroke-width', '2');
+    ring.setAttribute('opacity', '1');
+    rippleLayer.appendChild(ring);
+
+    const startT = performance.now(), dur = 700;
+    (function anim(now) {
+      const t    = Math.min((now - startT) / dur, 1);
+      const ease = 1 - Math.pow(1 - t, 2);
+      ring.setAttribute('r',       (48 + 56 * ease).toFixed(2)); // expands to r=104
+      ring.setAttribute('opacity', (1 - t).toFixed(3));           // fades to 0
+      if (t < 1) requestAnimationFrame(anim);
+      else ring.remove();
+    })(performance.now());
+  }
+
+  // Mode C: liquid stays full; button gently brightens then settles to solid blue
+  function triggerSuccessC() {
+    successCircle.setAttribute('opacity', '0'); // start hidden, reveal after flash
+    const startT = performance.now(), riseDur = 150, fallDur = 400;
+    (function anim(now) {
+      const el = now - startT;
+      let op;
+      if (el < riseDur) {
+        // ease-in rise — slow start, peaks at 0.5
+        const t = el / riseDur;
+        op = (1 - Math.pow(1 - t, 2)) * 0.5;
+      } else {
+        const t = Math.min((el - riseDur) / fallDur, 1);
+        op = 0.5 * (1 - t);
+        if (t >= 1) {
+          flashOverlay.setAttribute('opacity', '0');
+          successCircle.setAttribute('opacity', '1');
+          return;
+        }
+      }
+      flashOverlay.setAttribute('opacity', op.toFixed(3));
+      requestAnimationFrame(anim);
+    })(performance.now());
+  }
+
+  // ── Reset (clears all hold/success visuals) ──
+  function resetHold() {
+    if (holdRafId) { cancelAnimationFrame(holdRafId); holdRafId = null; }
+    lastTickB = -1;
+    progressArc.style.strokeDashoffset = '339.29';
+    arcLayer.style.display = 'none';
+    rippleLayer.innerHTML  = '';
+    liquidRect.setAttribute('y', '168');
+    liquidRect.setAttribute('height', '0');
+    successCircle.setAttribute('opacity', '0');
+    flashOverlay.setAttribute('opacity', '0');
+    pressOverlay.setAttribute('opacity', '0');
+  }
+
+  // ── Motion Settings panel toggle & bindings ──
+  document.getElementById('msToggle').addEventListener('click', (e) => {
+    e.stopPropagation();
+    document.getElementById('msToggle').classList.toggle('open');
+    document.getElementById('msPanel').classList.toggle('open');
+  });
+
+  // Duration / delay number inputs
+  document.getElementById('msCDur').addEventListener('input', e => {
+    ms.contract.dur = parseInt(e.target.value) || 0;
+  });
+  document.getElementById('msEDur').addEventListener('input', e => {
+    ms.expand.dur = parseInt(e.target.value) || 0;
+  });
+  document.getElementById('msEDelay').addEventListener('input', e => {
+    ms.expand.outer.delay = parseInt(e.target.value) || 0;
+  });
+
+  // ── Bezier editor factory ──
+  function initBezierEditor(cfg) {
+    const NS = 'http://www.w3.org/2000/svg';
+    const S = 110, PAD = 14, W = S - PAD * 2;
+    const svg        = document.getElementById(cfg.svgId);
+    const x1In       = document.getElementById(cfg.x1Id);
+    const y1In       = document.getElementById(cfg.y1Id);
+    const x2In       = document.getElementById(cfg.x2Id);
+    const y2In       = document.getElementById(cfg.y2Id);
+    const presetSel  = document.getElementById(cfg.presetId);
+    const customWrap = document.getElementById(cfg.customWrapId);
+
+    function toSvg(bx, by) { return [PAD + bx * W, S - PAD - by * W]; }
+    function fromSvg(sx, sy) { return [(sx - PAD) / W, (S - PAD - sy) / W]; }
+
+    function mk(tag, attrs) {
+      const el = document.createElementNS(NS, tag);
+      for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+      return el;
+    }
+
+    // Background rect
+    svg.appendChild(mk('rect', { x: PAD, y: PAD, width: W, height: W,
+      fill: 'none', stroke: '#e0e0e0', 'stroke-width': '0.5' }));
+
+    // Grid lines (4 divisions)
+    for (let i = 1; i < 4; i++) {
+      const t = i / 4;
+      svg.appendChild(mk('line', { x1: PAD + t*W, y1: PAD, x2: PAD + t*W, y2: S-PAD,
+        stroke: '#f0f0f0', 'stroke-width': '0.5' }));
+      svg.appendChild(mk('line', { x1: PAD, y1: S-PAD - t*W, x2: S-PAD, y2: S-PAD - t*W,
+        stroke: '#f0f0f0', 'stroke-width': '0.5' }));
+    }
+
+    // Diagonal reference
+    const [dx0,dy0] = toSvg(0,0), [dx1,dy1] = toSvg(1,1);
+    svg.appendChild(mk('line', { x1:dx0, y1:dy0, x2:dx1, y2:dy1,
+      stroke: '#ddd', 'stroke-width': '0.5', 'stroke-dasharray': '3,2' }));
+
+    // Tangent lines (P1 from anchor0, P2 from anchor1)
+    const line1 = mk('line', { stroke: '#bbb', 'stroke-width': '1' });
+    const line2 = mk('line', { stroke: '#bbb', 'stroke-width': '1' });
+    svg.appendChild(line1); svg.appendChild(line2);
+
+    // Curve
+    const curve = mk('path', { fill: 'none', stroke: '#0575E5', 'stroke-width': '1.5' });
+    svg.appendChild(curve);
+
+    // Anchor dots
+    const [a0x,a0y] = toSvg(0,0), [a1x,a1y] = toSvg(1,1);
+    svg.appendChild(mk('circle', { cx: a0x, cy: a0y, r: '2.5', fill: '#353535' }));
+    svg.appendChild(mk('circle', { cx: a1x, cy: a1y, r: '2.5', fill: '#353535' }));
+
+    // Draggable handles
+    const h1 = mk('circle', { r: '4.5', fill: '#0575E5', stroke: 'white', 'stroke-width': '1.2', cursor: 'grab' });
+    const h2 = mk('circle', { r: '4.5', fill: '#d9534f', stroke: 'white', 'stroke-width': '1.2', cursor: 'grab' });
+    svg.appendChild(h1); svg.appendChild(h2);
+
+    let p1 = [parseFloat(x1In.value), parseFloat(y1In.value)];
+    let p2 = [parseFloat(x2In.value), parseFloat(y2In.value)];
+
+    function redraw(fireChange) {
+      const [p1x,p1y] = toSvg(p1[0], p1[1]);
+      const [p2x,p2y] = toSvg(p2[0], p2[1]);
+      curve.setAttribute('d', `M ${a0x},${a0y} C ${p1x},${p1y} ${p2x},${p2y} ${a1x},${a1y}`);
+      line1.setAttribute('x1', a0x); line1.setAttribute('y1', a0y);
+      line1.setAttribute('x2', p1x); line1.setAttribute('y2', p1y);
+      line2.setAttribute('x1', a1x); line2.setAttribute('y1', a1y);
+      line2.setAttribute('x2', p2x); line2.setAttribute('y2', p2y);
+      h1.setAttribute('cx', p1x); h1.setAttribute('cy', p1y);
+      h2.setAttribute('cx', p2x); h2.setAttribute('cy', p2y);
+      if (fireChange) {
+        x1In.value = p1[0].toFixed(2); y1In.value = p1[1].toFixed(2);
+        x2In.value = p2[0].toFixed(2); y2In.value = p2[1].toFixed(2);
+        cfg.onChange(`cubic-bezier(${p1[0].toFixed(2)},${p1[1].toFixed(2)},${p2[0].toFixed(2)},${p2[1].toFixed(2)})`);
+      }
+    }
+
+    function makeDraggable(handle, which) {
+      let down = false;
+      handle.addEventListener('mousedown', (e) => {
+        e.preventDefault(); e.stopPropagation();
+        down = true; handle.setAttribute('cursor', 'grabbing');
+      });
+      window.addEventListener('mousemove', (e) => {
+        if (!down) return;
+        const rect = svg.getBoundingClientRect();
+        const sx = (e.clientX - rect.left) * (S / rect.width);
+        const sy = (e.clientY - rect.top)  * (S / rect.height);
+        let [bx, by] = fromSvg(sx, sy);
+        bx = Math.max(0, Math.min(1, bx)); // x clamped; y free (allows overshoot)
+        if (which === 1) p1 = [bx, by]; else p2 = [bx, by];
+        redraw(true);
+      });
+      window.addEventListener('mouseup', () => {
+        if (down) { down = false; handle.setAttribute('cursor', 'grab'); }
+      });
+    }
+
+    // Sync number inputs → editor
+    function syncFromInputs() {
+      p1 = [parseFloat(x1In.value)||0, parseFloat(y1In.value)||0];
+      p2 = [parseFloat(x2In.value)||0, parseFloat(y2In.value)||1];
+      redraw(true);
+    }
+    [x1In, y1In, x2In, y2In].forEach(el => el.addEventListener('input', syncFromInputs));
+
+    // Preset select
+    presetSel.addEventListener('change', (e) => {
+      e.stopPropagation();
+      const v = e.target.value;
+      if (v === 'custom') {
+        customWrap.classList.add('show');
+        redraw(true);
+      } else {
+        customWrap.classList.remove('show');
+        cfg.onChange(v);
+        // Mirror preset into p1/p2 so custom editor is ready if user switches later
+        if (v === 'linear') {
+          p1 = [0,0]; p2 = [1,1];
+        } else {
+          const m = v.match(/cubic-bezier\(([^)]+)\)/);
+          if (m) { const [a,b,c,d] = m[1].split(',').map(Number); p1=[a,b]; p2=[c,d]; }
+        }
+        x1In.value = p1[0]; y1In.value = p1[1];
+        x2In.value = p2[0]; y2In.value = p2[1];
+        redraw(false);
+      }
+    });
+
+    makeDraggable(h1, 1);
+    makeDraggable(h2, 2);
+    redraw(false); // initial draw
+  }
+
+  // Initialise all four bezier editors
+  initBezierEditor({
+    svgId:'msCInnerSvg', x1Id:'msCInnerX1', y1Id:'msCInnerY1', x2Id:'msCInnerX2', y2Id:'msCInnerY2',
+    presetId:'msCInnerPreset', customWrapId:'msCInnerCustom',
+    onChange: v => { ms.contract.inner.easing = v; }
+  });
+  initBezierEditor({
+    svgId:'msCOuterSvg', x1Id:'msCOuterX1', y1Id:'msCOuterY1', x2Id:'msCOuterX2', y2Id:'msCOuterY2',
+    presetId:'msCOuterPreset', customWrapId:'msCOuterCustom',
+    onChange: v => { ms.contract.outer.easing = v; }
+  });
+  initBezierEditor({
+    svgId:'msEInnerSvg', x1Id:'msEInnerX1', y1Id:'msEInnerY1', x2Id:'msEInnerX2', y2Id:'msEInnerY2',
+    presetId:'msEInnerPreset', customWrapId:'msEInnerCustom',
+    onChange: v => { ms.expand.inner.easing = v; }
+  });
+  initBezierEditor({
+    svgId:'msEOuterSvg', x1Id:'msEOuterX1', y1Id:'msEOuterY1', x2Id:'msEOuterX2', y2Id:'msEOuterY2',
+    presetId:'msEOuterPreset', customWrapId:'msEOuterCustom',
+    onChange: v => { ms.expand.outer.easing = v; }
+  });
+
+  // ── Retry countdown ──
+  const retryBtn = document.getElementById('retryBtn');
+  function startCountdown(n) {
+    retryBtn.disabled = true;
+    retryBtn.classList.remove('active');
+    retryBtn.innerHTML = 'Retry (<span id="countdown">' + n + '</span>)';
+    let c = n;
+    const timer = setInterval(() => {
+      c--;
+      const el = document.getElementById('countdown');
+      if (el) el.textContent = c;
+      if (c <= 0) {
+        clearInterval(timer);
+        retryBtn.innerHTML = 'Retry';
+        retryBtn.disabled  = false;
+        retryBtn.classList.add('active');
+        retryBtn.onclick = () => startCountdown(59);
+      }
+    }, 1000);
+  }
+  startCountdown(59);
+</script>
+
+</body>
+</html>
